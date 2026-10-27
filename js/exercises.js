@@ -1,6 +1,7 @@
 // Alıştırma üretimi ve cevap denetimi (DOM'dan bağımsız).
 import { shuffle, pick, normalizeAnswer, levenshtein, escapeRegExp } from "./util.js";
 import { LEVELS } from "./srs.js";
+import { emojiFor, hasEmoji } from "./visuals.js";
 
 export const POS_TR = {
   n: "isim", v: "fiil", adj: "sıfat", adv: "zarf", prep: "edat", conj: "bağlaç", pron: "zamir",
@@ -69,7 +70,7 @@ export function clozeParts(w) {
   return { before: w.example.slice(0, start), token: m[2], after: w.example.slice(start + m[2].length) };
 }
 
-export const TYPES = ["mcq_en_tr", "mcq_tr_en", "listen_mcq", "type_en", "dictation", "cloze", "speak"];
+export const TYPES = ["mcq_en_tr", "mcq_tr_en", "listen_mcq", "type_en", "dictation", "cloze", "speak", "emoji_mcq"];
 
 function optionList(correct, wrongs, labelFn, rng) {
   const opts = [{ label: labelFn(correct), correct: true }, ...wrongs.map((w) => ({ label: labelFn(w), correct: false }))];
@@ -88,6 +89,16 @@ export function makeExercise(type, w, index, rng = Math.random, opts = {}) {
     case "mcq_tr_en":
       return { ...base, prompt: w.tr.slice(0, 3).join(" / "), sub: posLabel(w.pos),
         options: optionList(w, distractors(w, index, 3, rng), (x) => x.word, rng) };
+    case "emoji_mcq": {
+      if (!hasEmoji(w.word)) return makeExercise("mcq_en_tr", w, index, rng, opts);
+      const mine = emojiFor(w.word);
+      const near = distractors(w, index, 30, rng).filter((x) => hasEmoji(x.word) && emojiFor(x.word) !== mine).slice(0, 3);
+      const extra = near.length < 3
+        ? shuffle(index.words.filter((x) => x.word !== w.word && hasEmoji(x.word) && emojiFor(x.word) !== mine && !near.includes(x)), rng).slice(0, 3 - near.length)
+        : [];
+      return { ...base, prompt: "Bu görsel hangi kelime?", emoji: mine, sub: shortMeaning(w, 1),
+        options: optionList(w, [...near, ...extra], (x) => x.word, rng) };
+    }
     case "listen_mcq":
       return { ...base, prompt: "Duyduğun kelimeyi seç", audio: w.word,
         options: optionList(w, distractors(w, index, 3, rng, true), (x) => x.word, rng) };
@@ -117,11 +128,12 @@ export function makeExercise(type, w, index, rng = Math.random, opts = {}) {
 export function pickType(card, w, caps, lastType, rng = Math.random) {
   const reps = card ? card.reps || 0 : 0;
   let pool;
-  if (reps <= 1) pool = ["mcq_en_tr", "listen_mcq", "mcq_tr_en"];
-  else if (reps <= 3) pool = ["mcq_tr_en", "cloze", "listen_mcq", "type_en"];
+  if (reps <= 1) pool = ["mcq_en_tr", "listen_mcq", "mcq_tr_en", "emoji_mcq"];
+  else if (reps <= 3) pool = ["mcq_tr_en", "cloze", "listen_mcq", "type_en", "emoji_mcq"];
   else pool = ["type_en", "dictation", "cloze", "speak"];
   pool = pool.filter((t) => {
     if (t === "cloze") return !!clozeParts(w);
+    if (t === "emoji_mcq") return hasEmoji(w.word);
     if (t === "speak") return caps.speaking;
     if (t === "listen_mcq" || t === "dictation") return caps.audio;
     return true;

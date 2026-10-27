@@ -299,3 +299,49 @@ test("hikâye kelime seçimi yalnızca tekrar aşamasındaki kelimelerden gelir"
   assert.deepEqual(pickStoryWords(prog, idx, "hard", 5), ["book", "apple"]);
   assert.deepEqual(pickStoryWords(prog, idx, "recent", 1), ["apple"]);
 });
+
+import { lookupToken, tokenize } from "../js/lemma.js";
+
+test("lemma: çekimli kelimeler sözlükteki karşılığına bağlanır", () => {
+  const expect = { walked: "walk", children: "child", went: "go", was: "be", jumping: "jump", boxes: "box", studies: "study", bought: "buy", Walking: "walk", "teacher's": "teacher", happier: "happy" };
+  for (const [tok, base] of Object.entries(expect)) {
+    const hit = lookupToken(tok, index.byWord);
+    assert.equal(hit && hit.word, base, `${tok} -> ${base}`);
+  }
+  assert.equal(lookupToken("zzzxq", index.byWord), null);
+  assert.deepEqual(tokenize("It's 5 o'clock!").filter((t) => t.word).map((t) => t.t), ["It's", "o'clock"]);
+});
+
+test("hikâye kütüphanesi: paragraflar eşleşir, kelimelerin çoğu sözlükte bulunur", () => {
+  const src = readFileSync(new URL("../data/stories.js", import.meta.url), "utf8");
+  const stories = new Function("window", src + "; return window.BLARMA_STORIES;")({});
+  assert.equal(stories.length, 10);
+  const ids = new Set();
+  for (const s of stories) {
+    assert.ok(!ids.has(s.id)); ids.add(s.id);
+    assert.equal(s.en.length, s.tr.length, s.id);
+    assert.ok(["a1", "a2", "b1", "b2", "c1"].includes(s.level));
+    const toks = tokenize(s.en.join(" ")).filter((t) => t.word);
+    const found = toks.filter((t) => lookupToken(t.t, index.byWord)).length;
+    assert.ok(found / toks.length > 0.8, `${s.id}: sözlük kapsamı ${found}/${toks.length}`);
+  }
+});
+
+test("emoji verisi: yalnızca listedeki kelimeler, görsel testi 4 farklı seçenek üretir", () => {
+  const src = readFileSync(new URL("../data/emoji.js", import.meta.url), "utf8");
+  const map = new Function("window", src + "; return window.BLARMA_EMOJI;")({});
+  const keys = Object.keys(map);
+  assert.ok(keys.length > 500);
+  assert.ok(keys.every((k) => index.byWord.has(k)), "emoji anahtarları kelime listesinde olmalı");
+  globalThis.window = { BLARMA_EMOJI: map };
+  const rng = mulberry32(5);
+  for (const w of keys.slice(0, 60).map((k) => index.byWord.get(k))) {
+    const ex = makeExercise("emoji_mcq", w, index, rng, {});
+    assert.equal(ex.type, "emoji_mcq");
+    assert.equal(ex.options.filter((o) => o.correct).length, 1);
+    assert.ok(ex.options.length >= 3 && new Set(ex.options.map((o) => o.label)).size === ex.options.length);
+  }
+  const nonEmoji = index.byWord.get("abandon");
+  assert.equal(makeExercise("emoji_mcq", nonEmoji, index, rng, {}).type, "mcq_en_tr", "görseli olmayan kelime yedeğe düşer");
+  delete globalThis.window;
+});

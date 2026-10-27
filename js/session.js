@@ -6,7 +6,7 @@ import { makeExercise, pickType } from "./exercises.js";
 const GROUP = 3;          // aynı anda tanıtılan yeni kelime sayısı
 const RETRY_GAP = 3;      // yanlış cevaptan kaç soru sonra tekrar sorulur
 
-export function createSession({ store, index, mode = "daily", words = null, newCount = null, rng = Math.random, caps = {}, today = dayNumber() }) {
+export function createSession({ store, index, mode = "daily", words = null, newCount = null, forceType = null, rng = Math.random, caps = {}, today = dayNumber() }) {
   const st = store.state;
   const prog = st.prog;
   const meta = new Map();   // kelime -> {mistakes}
@@ -75,6 +75,8 @@ export function createSession({ store, index, mode = "daily", words = null, newC
     let type;
     if (t.kind === "new") {
       type = t.stage === 1 ? "mcq_en_tr" : (caps.audio && lastType !== "listen_mcq" && rng() < 0.5 ? "listen_mcq" : "mcq_tr_en");
+    } else if (t.kind === "practice" && forceType) {
+      type = forceType;
     } else if (t.kind === "relearn") {
       type = lastType === "mcq_en_tr" ? "mcq_tr_en" : "mcq_en_tr";
     } else {

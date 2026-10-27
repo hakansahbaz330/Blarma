@@ -11,6 +11,7 @@ export const DEFAULT_SETTINGS = {
   theme: "auto",
   speaking: true,
   autoplay: true,
+  slideSeconds: 6,     // slayt gösterisi hızı
   maxReviews: 40,      // bir oturumdaki en fazla tekrar
   apiKey: "",          // isteğe bağlı: hikâyeler için kullanıcının kendi Anthropic anahtarı
   model: "claude-haiku-5-5",
@@ -26,6 +27,7 @@ export function defaultState() {
     prog: {},            // kelime -> kart (srs.js)
     custom: [],          // kullanıcı kelimeleri
     flags: {},           // hatalı çeviri bildirimleri: kelime -> not
+    stories: { read: {}, fav: {} },   // hikâye id -> okunduğu gün / favori
     stats: { xp: 0, streak: 0, best: 0, last: 0, freezes: 1, daily: {} },
   };
 }
@@ -39,6 +41,7 @@ function migrate(s) {
     prog: s.prog || {},
     custom: s.custom || [],
     flags: s.flags || {},
+    stories: { read: {}, fav: {}, ...(s.stories || {}) },
   };
 }
 

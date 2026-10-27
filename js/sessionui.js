@@ -5,6 +5,7 @@ import { makeExercise, checkTyped, posLabel, shortMeaning } from "./exercises.js
 import { LEVELS, LEVEL_LABELS } from "./srs.js";
 import { speak, stopSpeaking, listenOnce, caps as speechCaps } from "./speech.js";
 import { icons } from "./icons.js";
+import { tileHtml, emojiFor } from "./visuals.js";
 import { escapeHtml as h, dayNumber, shuffle } from "./util.js";
 
 let S = null;            // etkin oturum
@@ -53,9 +54,9 @@ function setProgress(p, xp) {
 
 /* ------------------------------------------------------------------ oturum */
 
-export function startSession({ mode = "daily", words = null, newCount = null, title = "Çalışma" } = {}) {
+export function startSession({ mode = "daily", words = null, newCount = null, forceType = null, title = "Çalışma" } = {}) {
   const caps = { audio: speechCaps.audio, speaking: speechCaps.speaking && ctx.store.state.settings.speaking };
-  const s = createSession({ store: ctx.store, index: ctx.index, mode, words, newCount, caps });
+  const s = createSession({ store: ctx.store, index: ctx.index, mode, words, newCount, forceType, caps });
   if (s.done) { ctx.toast("Şu an çalışılacak kelime yok."); return false; }
   S = s;
   ui = { answered: false, hinted: false, xp: 0 };
@@ -90,7 +91,8 @@ function renderIntro(t) {
     <div class="intro-wrap">
       <article class="card flash" id="flash" aria-label="Yeni kelime">
         <span class="stamp l">BİLİYORUM</span><span class="stamp r">ÖĞRENELİM</span>
-        ${lvChip(w)} <span class="chip">${h(posLabel(w.pos))}</span>
+        ${tileHtml(w, "xl")}
+        <div>${lvChip(w)} <span class="chip">${h(posLabel(w.pos))}</span></div>
         <div class="big" lang="en">${h(w.word)}</div>
         <button class="icon-btn say" data-a="s:say" data-t="${h(w.word)}" aria-label="Dinle">${icons.speaker}</button>
         ${meaningsHtml(w)}
@@ -150,6 +152,8 @@ function decideIntro(d) {
 function promptHtml(ex, w) {
   const audioBtn = (txt) => `<button class="icon-btn say" data-a="s:say" data-t="${h(txt)}" aria-label="Dinle" style="margin:8px auto 0">${icons.speaker}</button>`;
   switch (ex.type) {
+    case "emoji_mcq":
+      return `<div class="q-prompt"><div class="kicker">${h(ex.prompt)}</div><div class="emoji-big" aria-label="görsel">${ex.emoji}</div></div>`;
     case "mcq_en_tr":
       return `<div class="q-prompt"><div class="kicker">Türkçesi nedir?</div><div class="big" lang="en">${h(ex.prompt)}</div><div class="sub">${h(ex.sub)}</div>${audioBtn(w.word)}</div>`;
     case "mcq_tr_en":
@@ -219,7 +223,7 @@ function feedbackHtml(ok, close, w, extra = "") {
   const title = ok ? (close ? "Neredeyse! Doğru yazım:" : ["Harika!", "Doğru!", "Süper!", "Tam isabet!"][Math.floor(Math.random() * 4)]) : "Doğrusu:";
   return `<div class="feedback ${ok ? "ok" : "bad"}" role="status">
       <h3>${h(title)}</h3>
-      <div class="w" lang="en">${h(w.word)} <span class="muted" style="font-weight:600;font-size:15px">· ${h(posLabel(w.pos))}</span></div>
+      <div class="w" lang="en">${emojiFor(w.word) ? emojiFor(w.word) + " " : ""}${h(w.word)} <span class="muted" style="font-weight:600;font-size:15px">· ${h(posLabel(w.pos))}</span></div>
       <div>${h(w.tr.join(" · "))}</div>
       ${w.example ? `<div class="ex" lang="en">${h(w.example)}</div>` : ""}
       ${extra}

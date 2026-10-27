@@ -54,9 +54,11 @@ Puan: Google Play ≈ 4,7 (≈5,9 bin yorum), App Store ≈ 4,7–4,8. Genel ola
 * **Kendi kelimeni ekle**, **çeviri hatası bildir** (yerel liste, JSON'a dışa aktarılır).
 * **İsteğe bağlı hikâye:** kullanıcının kendi Anthropic API anahtarıyla, sunucusuz.
 
+**Ekran görüntülerinden doğrulanan Blarma yapısı (kullanıcının paylaştığı 4 ekran):** *Öğren* (günün görevleri: yeni kelimeler, günün hikâyesi, "daha fazla görev", günün kelimeleri fotoğraf ızgarası), *Pratik yap* (meditasyon, slayt gösterisi, dinleme, telaffuz, ses kayıt, yazma, görsel testi, çeviri testi, ters çeviri), *Hikâyeler* (resimli, seviye etiketli, favori ve kelime arama), *İlerleme* (% tamamlandı, "kilidini açtığın" kelime sayısı, öğrendiğim/zor/bildiğim/favori, Yeni → 1/3/7/30/120. gün aşamaları). Kelime Bahçesi aynı bilgi mimarisini izler; fark: sınırsız ve ücretsiz, kendi kelime ekleme, seri dondurma, hikâyede dokununca çeviri. Henüz **yok:** gerçek fotoğraflar/resimli hikâyeler (yerine emoji ve renkli karolar), meditasyon ve ses kayıt modları.
+
 ## 5. Dürüst sınırlar ve yol haritası
 
-**Şu an olmayanlar** (Blarma'daki en büyük fark): kelime **fotoğrafları** yok; konu/tema kategorileri yok; IPA fonetik yazımı yok; hesap/bulutta eşitleme yok; yerel mobil uygulama (App Store/Play) değil PWA.
+**Şu an olmayanlar** (Blarma'daki en büyük fark): kelime **fotoğrafları** ve resimli hikâyeler yok (emoji kullanılıyor, 600+ kelimede); konu/tema kategorileri yok; IPA fonetik yazımı yok; hesap/bulutta eşitleme yok; yerel mobil uygulama (App Store/Play) değil PWA.
 
 **Kalite uyarıları:**
 

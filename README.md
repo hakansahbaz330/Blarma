@@ -18,14 +18,20 @@ Uçtan uca testler (Playwright gerekir, sunucu açıkken):
 ```bash
 NODE_PATH=$(npm root -g) node tests/e2e/smoke.cjs     # onboarding, oturum, kelimeler, ayarlar
 NODE_PATH=$(npm root -g) node tests/e2e/review.cjs    # tekrar akışı, tüm alıştırma türleri, seviye testi
-NODE_PATH=$(npm root -g) node tests/e2e/story.cjs     # hikâye (API taklit edilir)
+NODE_PATH=$(npm root -g) node tests/e2e/story.cjs     # AI hikâye (API taklit edilir)
+NODE_PATH=$(npm root -g) node tests/e2e/tabs.cjs      # pratik, slayt, hikâye okuyucu, görevler
+NODE_PATH=$(npm root -g) node tests/e2e/offline.cjs   # çevrimdışı açılış
 ```
 
 ## Özellikler
 
+* **4 sekme:** **Öğren** (günün görevleri, "daha fazla görev", günün kelimeleri), **Pratik yap** (10 mod), **Hikâyeler** (kütüphane + okuyucu), **İlerleme** (aralıklı tekrar aşamaları, istatistik, kelime listesi). Ayarlar profil simgesinden.
+* **Görseller:** 600+ somut kelime için emoji (kart, günün kelimeleri, **Görsel testi**); diğerleri seviye renginde harf karosu.
+* **Hikâyeler:** 10 özgün, çevrimdışı hikâye (A1–B1), paragraf Türkçe çevirisi, **kelimeye dokununca anlam** (çekimli biçimler çözülür), bildiğin kelimeler yeşil, tek dokunuşla öğrenme listesine ekleme, günün hikâyesi görevi, favoriler ve hikâyelerde kelime arama.
+* **Pratik modları:** karma, slayt gösterisi (sesli, otomatik), dinleme, telaffuz, yazma, dikte, görsel testi, çeviri, ters çeviri, cümle tamamlama; kaynak: öğrendiklerim / zor / favoriler. Pratik zamanlamayı değiştirmez.
 * **Günlük akış:** önce vadesi gelen tekrarlar, sonra 3'lü gruplar hâlinde yeni kelimeler (tanıt → tanı → pekiştir).
 * **Kaydırmalı kartlar:** sağa = öğrenelim, sola = zaten biliyorum (bilinenin yerine yeni kelime gelir).
-* **7 alıştırma türü:** Türkçesi nedir? · İngilizcesi nedir? · dinle-seç · Türkçeden yaz · dikte · cümle boşluğu (seçmeli/yazılı) · konuşma (destekleyen tarayıcıda). Olgunlaştıkça zorlaşır. Bir harf hatası "neredeyse" sayılır.
+* **8 alıştırma türü:** Türkçesi nedir? · İngilizcesi nedir? · dinle-seç · Türkçeden yaz · dikte · cümle boşluğu (seçmeli/yazılı) · görsel · konuşma (destekleyen tarayıcıda). Olgunlaştıkça zorlaşır. Bir harf hatası "neredeyse" sayılır.
 * **Aralıklı tekrar:** 1 → 3 → ~8 → ~20 → ~50 → ~125 gün (en fazla 180); unutulunca sıfırlanır, 4+ unutma "zor kelime".
 * **Seviye belirleme testi**, hedef seviyeler (A1–C1), günlük hedef (5–30).
 * **Kelimeler:** Türkçe/İngilizce arama, seviye/durum filtreleri, favori, "biliyorum", sıfırla, **kendi kelimeni ekle**, **çeviri hatası bildir**.
@@ -43,9 +49,13 @@ js/exercises.js   alıştırma üretimi, çeldiriciler, cevap denetimi
 js/session.js     oturum kuyruğu ve puanlama
 js/store.js       localStorage durumu, seri, yedek
 js/sessionui.js   oturum + seviye testi arayüzü
-js/app.js         ana sayfa, kelimeler, istatistik, ayarlar
-js/stories.js     isteğe bağlı AI hikâyeleri
+js/app.js         sekmeler: Öğren, Pratik yap, İlerleme, kelimeler, ayarlar
+js/storiesui.js   Hikâyeler sekmesi, okuyucu, AI üretici arayüzü
+js/slideshow.js   slayt gösterisi
+js/stories.js     isteğe bağlı AI hikâye API'si ve doğrulama
+js/lemma.js, visuals.js   çekim çözümleyici, emoji/karo
 data/words.js     üretilmiş kelime verisi (tools/build_words.py)
+data/emoji.js, data/stories.js   görseller ve çevrimdışı hikâyeler
 data-src/         kaynak veri: wordlist.psv, translations.psv, extra_translations.psv
 tests/            birim (node --test) ve uçtan uca (Playwright) testler
 ```

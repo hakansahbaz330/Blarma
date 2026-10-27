@@ -19,8 +19,9 @@ const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exitCode
   assert(await page.locator("text=Kelime Bahçesi'ne hoş geldin").count() === 1, "onboarding görünür");
   await page.screenshot({ path: `${OUT}/01-onboarding.png` });
   await page.click('[data-a="onb-a1"]');
-  await page.waitForSelector(".ring");
-  assert((await page.textContent(".ring")).includes("0/10"), "günlük hedef 0/10");
+  await page.waitForSelector(".task");
+  assert((await page.textContent(".page-title")).includes("Bugünün görevleri"), "bugünün görevleri başlığı");
+  assert((await page.textContent("#app")).includes("0/10"), "günlük hedef 0/10");
   await page.screenshot({ path: `${OUT}/02-home.png` });
 
   // Oturum: tanıtım kartları
@@ -87,13 +88,17 @@ const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exitCode
   await page.screenshot({ path: `${OUT}/04-summary.png` });
   assert((await page.textContent(".summary")).includes("yeni kelime"), "özet ekranı");
   await page.click('[data-a="s:done"]');
-  await page.waitForSelector(".ring");
-  const ring = await page.textContent(".ring");
-  console.log("ring:", ring.replace(/\s+/g, " "));
-  assert(/[1-9]\d*\/10/.test(ring), "günlük hedef ilerledi");
+  await page.waitForSelector(".task");
+  assert((await page.locator(".task.done").count()) >= 1, "yeni kelime görevi tamamlandı işaretlendi");
+  assert((await page.textContent(".page-title")).length > 0, "ana sayfa yeniden çizildi");
 
-  // Kelimeler sekmesi: arama (Türkçe ve İngilizce), filtre
-  await page.click('[data-a="nav"][data-v="words"]');
+  // İlerleme sekmesi ve kelime listesi
+  await page.click('[data-a="nav"][data-v="progress"]');
+  await page.waitForSelector(".hero-card");
+  assert((await page.textContent(".stages")).includes("1 hafta"), "aralıklı tekrar aşamaları görünür");
+  await page.screenshot({ path: `${OUT}/07-progress.png`, fullPage: true });
+  await page.click('[data-a="prog-open"][data-v="all"]:not(.search-fake)');
+  await page.waitForSelector("#q");
   await page.fill("#q", "elma");
   await page.waitForSelector(".witem");
   assert((await page.textContent("#wlist")).includes("apple"), "Türkçe aramayla 'apple' bulundu");
@@ -118,22 +123,22 @@ const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exitCode
   await page.waitForSelector(".witem");
   assert((await page.locator(".witem").count()) === 1, "özel kelime eklendi ve aranabildi");
 
-  // İstatistik ve ayarlar
-  await page.click('[data-a="nav"][data-v="stats"]');
-  await page.waitForSelector(".bars");
-  await page.screenshot({ path: `${OUT}/07-stats.png` });
-  await page.click('[data-a="nav"][data-v="settings"]');
+  // Ayarlar (profil simgesinden)
+  await page.click('[data-a="nav"][data-v="learn"]');
+  await page.click('[data-a="go-settings"]');
+  await page.waitForSelector('[data-k="goal"]');
   await page.click('[data-a="set"][data-k="goal"][data-v="5"]');
   assert((await page.locator('[data-k="goal"][data-v="5"]').getAttribute("aria-pressed")) === "true", "hedef ayarı değişti");
   await page.click('[data-a="set"][data-k="theme"][data-v="dark"]');
   await page.screenshot({ path: `${OUT}/08-settings-dark.png` });
-  await page.click('[data-a="nav"][data-v="home"]');
+  await page.click('[data-a="back"]');
+  await page.waitForSelector(".task");
   await page.screenshot({ path: `${OUT}/09-home-dark.png` });
 
   // Kalıcılık
   await page.reload();
-  await page.waitForSelector(".ring");
-  assert((await page.textContent(".ring")).includes("/5"), "ayarlar yenilemeden sonra korundu");
+  await page.waitForSelector(".task");
+  assert((await page.textContent("#app")).includes("/5"), "ayarlar yenilemeden sonra korundu");
 
   assert(errors.length === 0, "konsolda hata yok " + JSON.stringify(errors));
   await browser.close();
