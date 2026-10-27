@@ -238,7 +238,7 @@ function tokenSheet(wordKey, tokenText) {
         <div class="muted">${h(posLabel(w.pos))} · <span class="chip lv lv-${w.level}">${w.level.toUpperCase()}</span>${tokenText.toLowerCase() !== w.word ? ` · metinde: <i>${h(tokenText)}</i>` : ""}</div></div>
         <button class="icon-btn" data-a="tok-close" aria-label="Kapat">${icons.close}</button></div>
       <ul style="list-style:none;padding:0;margin:0;font-size:20px;font-weight:700">${w.tr.map((m) => `<li>${h(m)}</li>`).join("")}</ul>
-      ${w.example ? `<div class="card" style="font-style:italic" lang="en">${h(w.example)}</div>` : ""}
+      ${w.example ? `<div class="card" lang="en"><i>${h(w.example)}</i>${w.exampleTr ? `<div class="muted" style="margin-top:4px" lang="tr">${h(w.exampleTr)}</div>` : ""}</div>` : ""}
       <div class="row"><button class="btn grow" data-a="say" data-t="${h(w.word)}">${icons.speaker} Seslendir</button>
         ${!c ? `<button class="btn soft grow" data-a="tok-add" data-w="${h(w.word)}">Sözlüğe ekle</button>` : `<span class="muted grow" style="text-align:center">${c.s === 3 ? "Bildiğin kelime" : "Listende"}</span>`}</div></div>`;
   back.addEventListener("click", (e) => { if (e.target === back) back.remove(); });

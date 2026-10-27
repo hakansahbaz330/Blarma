@@ -15,7 +15,7 @@ export function posLabel(pos) {
 
 /** window.BLARMA_WORDS satırlarını nesnelere çevirir. */
 export function toWordObjects(rows) {
-  return rows.map(([word, level, pos, tr, example]) => ({ word, level, pos, tr, example }));
+  return rows.map(([word, level, pos, tr, example, exampleTr = ""]) => ({ word, level, pos, tr, example, exampleTr }));
 }
 
 export function buildIndex(words) {

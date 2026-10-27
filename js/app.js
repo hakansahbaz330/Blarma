@@ -20,7 +20,7 @@ ctx.store = store;
 const baseWords = toWordObjects(window.BLARMA_WORDS || []);
 
 function rebuild() {
-  const custom = store.state.custom.map((c) => ({ word: c.word, level: "k", pos: c.pos || "n", tr: c.tr, example: c.example || "" }));
+  const custom = store.state.custom.map((c) => ({ word: c.word, level: "k", pos: c.pos || "n", tr: c.tr, example: c.example || "", exampleTr: "" }));
   ctx.words = [...custom, ...baseWords];
   ctx.index = buildIndex(ctx.words);
 }
@@ -372,7 +372,7 @@ function openWord(word) {
       <div class="muted">${h(posLabel(w.pos))}</div>
       <button class="icon-btn" style="margin:0 auto" data-a="say" data-t="${h(w.word)}" aria-label="Dinle">${icons.speaker}</button>
       <ul style="list-style:none;padding:0;margin:0;font-size:22px;font-weight:700">${w.tr.map((m) => `<li>${h(m)}</li>`).join("")}</ul>
-      ${w.example ? `<div class="card" style="font-style:italic" lang="en">${h(w.example)} <button class="icon-btn" data-a="say" data-t="${h(w.example)}" aria-label="Cümleyi dinle">${icons.speaker}</button></div>` : ""}
+      ${w.example ? `<div class="card" lang="en"><i>${h(w.example)}</i> <button class="icon-btn" data-a="say" data-t="${h(w.example)}" aria-label="Cümleyi dinle">${icons.speaker}</button>${w.exampleTr ? `<div class="muted" style="margin-top:4px" lang="tr">${h(w.exampleTr)}</div>` : ""}</div>` : ""}
       <p class="muted">${stateLabel}${nextDue}${c && c.lapses ? ` · ${c.lapses} kez unutuldu` : ""}</p>
     </div>
     <div class="stack">

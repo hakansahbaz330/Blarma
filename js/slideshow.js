@@ -34,7 +34,8 @@ function show() {
     <div class="big" lang="en">${h(w.word)}</div>
     <div class="muted">${h(posLabel(w.pos))}</div>
     <ul class="slide-tr">${w.tr.map((m) => `<li>${h(m)}</li>`).join("")}</ul>
-    ${w.example ? `<p class="slide-ex" lang="en">${h(w.example)}</p>` : ""}`;
+    ${w.example ? `<p class="slide-ex" lang="en">${h(w.example)}</p>` : ""}
+    ${w.exampleTr ? `<p class="slide-ex" style="margin-top:2px;font-style:normal" lang="tr">${h(w.exampleTr)}</p>` : ""}`;
   document.getElementById("s-bar").style.width = `${Math.round(((st.i + 1) / st.list.length) * 100)}%`;
   document.getElementById("slide-count").textContent = `${st.i + 1} / ${st.list.length}`;
   document.getElementById("slide-play").innerHTML = st.playing ? icons.pause : icons.play;

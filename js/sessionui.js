@@ -98,6 +98,7 @@ function renderIntro(t) {
         <button class="icon-btn say" data-a="s:say" data-t="${h(w.word)}" aria-label="Dinle">${icons.speaker}</button>
         ${meaningsHtml(w)}
         ${w.example ? `<div class="example" lang="en"><span class="grow">${h(w.example)}</span><button class="icon-btn" data-a="s:say" data-t="${h(w.example)}" aria-label="Cümleyi dinle">${icons.speaker}</button></div>` : ""}
+        ${w.exampleTr ? `<button class="link-btn" data-a="s:extr" aria-expanded="false">Cümleyi çevir</button><p class="extr" id="extr" lang="tr" hidden>${h(w.exampleTr)}</p>` : ""}
       </article>
       <p class="swipe-hint">Kartı sağa kaydır: öğren · sola kaydır: zaten biliyorum</p>
     </div>`;
@@ -174,7 +175,8 @@ function promptHtml(ex, w) {
     case "cloze": {
       const c = ex.cloze;
       return `<div class="q-prompt"><div class="kicker">${h(ex.prompt)} · <span lang="tr">${h(ex.sub)}</span></div></div>
-        <p class="cloze" lang="en">${h(c.before)}<span class="blank">${"&nbsp;".repeat(Math.min(8, c.token.length))}</span>${h(c.after)}</p>`;
+        <p class="cloze" lang="en">${h(c.before)}<span class="blank">${"&nbsp;".repeat(Math.min(8, c.token.length))}</span>${h(c.after)}</p>
+        ${w.exampleTr ? `<p class="muted" style="text-align:center;margin:-6px 0 12px" lang="tr">${h(w.exampleTr)}</p>` : ""}`;
     }
     case "speak":
       return `<div class="q-prompt"><div class="kicker">${h(ex.prompt)}</div><div class="big" lang="en">${h(ex.display)}</div><div class="sub">${h(ex.sub)}</div>${audioBtn(w.word)}</div>`;
@@ -238,6 +240,7 @@ function feedbackHtml(ok, close, w, extra = "") {
       <div class="w" lang="en">${emojiFor(w.word) ? emojiFor(w.word) + " " : ""}${h(w.word)} <span class="muted" style="font-weight:600;font-size:15px">· ${h(posLabel(w.pos))}</span></div>
       <div>${h(w.tr.join(" · "))}</div>
       ${w.example ? `<div class="ex" lang="en">${h(w.example)}</div>` : ""}
+      ${w.exampleTr ? `<div class="ex-tr" lang="tr">${h(w.exampleTr)}</div>` : ""}
       ${extra}
       <div class="tools">
         <button class="btn sm" data-a="s:say" data-t="${h(w.word)}">${icons.speaker} Dinle</button>
@@ -468,6 +471,13 @@ function onKey(e) {
 Object.assign(ctx.actions, {
   "s:say": (el) => say(el.dataset.t),
   "s:slow": (el) => saySlow(el.dataset.t),
+  "s:extr": (el) => {
+    const p = document.getElementById("extr");
+    if (!p) return;
+    p.hidden = !p.hidden;
+    el.setAttribute("aria-expanded", String(!p.hidden));
+    el.textContent = p.hidden ? "Cümleyi çevir" : "Çeviriyi gizle";
+  },
   "s:tile": (el) => tilePress(el.dataset.l),
   "s:slot": (el) => slotPress(Number(el.dataset.i)),
   "s:exit": () => exitConfirm(),

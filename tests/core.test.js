@@ -345,3 +345,10 @@ test("emoji verisi: yalnızca listedeki kelimeler, görsel testi 4 farklı seçe
   assert.equal(makeExercise("emoji_mcq", nonEmoji, index, rng, {}).type, "mcq_en_tr", "görseli olmayan kelime yedeğe düşer");
   delete globalThis.window;
 });
+
+test("örnek cümle çevirileri: her kelimede var, boş ya da İngilizce kopya değil", () => {
+  assert.equal(words.length, 4954);
+  const bad = words.filter((w) => !w.exampleTr || w.exampleTr.length < 4 || w.exampleTr === w.example);
+  assert.equal(bad.length, 0, "eksik/bozuk: " + bad.slice(0, 5).map((w) => w.word).join(","));
+  assert.ok(words.filter((w) => /[çğıöşüÇĞİÖŞÜ]/.test(w.exampleTr)).length / words.length > 0.5, "çoğu çeviride Türkçe karakter olmalı");
+});

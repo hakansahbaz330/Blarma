@@ -420,3 +420,6 @@ h1.page-title { font-size: 26px; font-weight: 800; letter-spacing: -.02em; margi
 .x-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; flex: none; }
 .wlist { padding-bottom: 76px; }
 .icon-btn.glass.big svg { fill: currentColor; stroke: none; }
+.link-btn { background: none; border: 0; color: var(--tone-blue); font-weight: 600; padding: 8px; }
+.extr { margin: 2px 0 0; color: var(--muted); font-size: 17px; }
+.feedback .ex-tr { color: var(--muted); margin-top: 2px; }

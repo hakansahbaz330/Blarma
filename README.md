@@ -32,6 +32,10 @@ NODE_PATH=$(npm root -g) node tests/e2e/offline.cjs   # çevrimdışı açılı�
 * **Günlük akış:** önce vadesi gelen tekrarlar, sonra 3'lü gruplar hâlinde yeni kelimeler (tanıt → tanı → pekiştir).
 * **Kaydırmalı kartlar:** sağa = öğrenelim, sola = zaten biliyorum (bilinenin yerine yeni kelime gelir).
 * **8 alıştırma türü:** Türkçesi nedir? · İngilizcesi nedir? · dinle-seç · Türkçeden yaz · dikte · cümle boşluğu (seçmeli/yazılı) · görsel · konuşma (destekleyen tarayıcıda). Olgunlaştıkça zorlaşır. Bir harf hatası "neredeyse" sayılır.
+* **Cümle okuyucu ve hikâye detayı:** cümle cümle okuma, sesle vurgulama, cümle çevirisi, hedef kelime listesi, yazı boyutu.
+* **Yazma karoları:** harfleri dokunarak diz (ayardan klavyeye geçilir), ipucu ve yavaş telaffuz.
+* **Meditasyon, ses kaydı, slayt gösterisi, listeli pratik** (öğrendiklerim/bildiklerim listesinden "Pratik yap", X ile çıkarma), **resimli dinleme**.
+* **Örnek cümle çevirisi:** kartta "Cümleyi çevir", geri bildirimde ve kelime penceresinde Türkçe karşılığı (yapay zekâ yazımı, insan denetimi yok).
 * **Aralıklı tekrar:** 1 → 3 → ~8 → ~20 → ~50 → ~125 gün (en fazla 180); unutulunca sıfırlanır, 4+ unutma "zor kelime".
 * **Seviye belirleme testi**, hedef seviyeler (A1–C1), günlük hedef (5–30).
 * **Kelimeler:** Türkçe/İngilizce arama, seviye/durum filtreleri, favori, "biliyorum", sıfırla, **kendi kelimeni ekle**, **çeviri hatası bildir**.

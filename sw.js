@@ -1,5 +1,5 @@
 // Basit çevrimdışı önbellek: uygulama kabuğu önce önbellekten, ağ yedek.
-const VERSION = "kb-v4";
+const VERSION = "kb-v5";
 const ASSETS = [
   "./", "index.html", "css/style.css", "manifest.webmanifest", "data/words.js", "data/emoji.js", "data/stories.js",
   "js/app.js", "js/ctx.js", "js/store.js", "js/srs.js", "js/session.js", "js/sessionui.js",
