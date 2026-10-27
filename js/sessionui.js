@@ -2,9 +2,9 @@
 import { ctx } from "./ctx.js";
 import { createSession } from "./session.js";
 import { makeExercise, checkTyped, posLabel, shortMeaning } from "./exercises.js";
-import { LEVELS, LEVEL_LABELS } from "./srs.js";
+import { LEVELS, LEVEL_LABELS, forecast } from "./srs.js";
 import { speak, stopSpeaking, listenOnce, caps as speechCaps } from "./speech.js";
-import { icons } from "./icons.js";
+import { icons, plants } from "./icons.js";
 import { tileHtml, emojiFor } from "./visuals.js";
 import { escapeHtml as h, dayNumber, shuffle } from "./util.js";
 
@@ -403,10 +403,11 @@ function finish() {
   const learned = sum.learned.map((w) => ctx.index.byWord.get(w)).filter(Boolean);
   const missed = sum.missed.map((w) => ctx.index.byWord.get(w)).filter(Boolean);
   const pct = Math.round(sum.accuracy * 100);
+  const tomorrow = forecast(ctx.store.state.prog, dayNumber(), 2)[1];
   setProgress(1, sum.xp);
   body().innerHTML = `
     <div class="summary stack">
-      <div class="trophy" aria-hidden="true">🌱</div>
+      <div class="trophy" aria-hidden="true">${plants[learned.length ? 1 : 2](72)}</div>
       <h1>Oturum tamam!</h1>
       <p class="muted">${sum.answers ? `${sum.answers} soru · %${pct} doğru` : "Bu oturumda soru çözmedin."}</p>
       <div class="stat-row">
@@ -414,6 +415,7 @@ function finish() {
         <div class="stat"><b>${sum.reviewed}</b><span>tekrar</span></div>
         <div class="stat"><b>+${sum.xp}</b><span>XP</span></div>
       </div>
+      ${learned.length ? `<p class="plan-note" style="text-align:left">Yeni kelimelerin <b>yarın</b> seni bekliyor${tomorrow ? ` (toplam ${tomorrow} tekrar)` : ""}. İlk tekrarı uykudan sonra yapmak, kelimeleri kalıcı hafızaya yerleştirir.</p>` : ""}
       ${learned.length ? `<div><h2 class="sec">Bugün öğrendiklerin</h2><div class="pill-list">${learned.map((w) => `<span class="pill"><b lang="en">${h(w.word)}</b>${h(shortMeaning(w, 1))}</span>`).join("")}</div></div>` : ""}
       ${missed.length ? `<div><h2 class="sec">Zorlandıkların (yakında tekrar edilecek)</h2><div class="pill-list">${missed.map((w) => `<span class="pill"><b lang="en">${h(w.word)}</b>${h(shortMeaning(w, 1))}</span>`).join("")}</div></div>` : ""}
     </div>`;
@@ -424,7 +426,7 @@ function finish() {
 function confetti() {
   const box = document.createElement("div");
   box.className = "confetti";
-  const colors = ["#0f9d6b", "#f59e0b", "#2f8fd8", "#d6336c", "#8b5cf6"];
+  const colors = ["#1a5c4f", "#d9542b", "#8dbb5a", "#a67c52", "#3f9a62"];
   for (let i = 0; i < 36; i++) {
     const p = document.createElement("i");
     p.style.left = Math.random() * 100 + "%";

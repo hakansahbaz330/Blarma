@@ -487,6 +487,8 @@ function settingsView() {
         <div class="field"><label>Çalışılacak seviyeler</label>
           <div class="seg" role="group">${LEVELS.map((lv) => `<button data-a="toggle-level" data-v="${lv}" aria-pressed="${s.levels.includes(lv)}">${lv.toUpperCase()}</button>`).join("")}</div>
           <span class="muted" style="font-size:13px">Yeni kelimeler seçili seviyelerden, düşükten yükseğe doğru gelir.</span></div>
+        <div class="field"><label>Tekrar sıklığı</label>${seg("retention", [[0.85, "Rahat"], [0.9, "Dengeli"], [0.95, "Sıkı"]])}
+          <span class="muted" style="font-size:13px">Sıkı: kelimeleri daha az unutursun ama daha çok tekrar edersin. Rahat: daha az tekrar, biraz daha çok unutma. Çoğu kişi için Dengeli yeterlidir.</span></div>
         <button class="btn soft" data-a="placement">Seviye belirleme testi yap</button>
       </section>
       <section class="card stack">
@@ -519,7 +521,7 @@ function settingsView() {
       </section>
       <section class="card" style="font-size:14px">
         <b>Hakkında</b>
-        <p class="muted">Kelime listesi Oxford 3000/5000 yapısına (A1–C1) göre düzenlenmiştir. Türkçe karşılıklar, örnek cümleler ve hikâyeler yapay zekâ ile hazırlanmıştır; hatalı gördüğün çeviriyi “Çeviri hatalı” ile bildirebilirsin.</p>
+        <p class="muted">Kelimeler A1–C1 arası yaklaşık seviyelere ayrılmıştır (resmî bir sınav seviyesi değildir). Türkçe karşılıklar, örnek cümleler ve hikâyeler yapay zekâ ile hazırlanmıştır; hatalı gördüğün çeviriyi “Çeviri hatalı” ile bildirebilirsin.</p>
       </section>
     </div>`;
 }
@@ -606,7 +608,7 @@ Object.assign(ctx.actions, {
   set: (el) => {
     const k = el.dataset.k;
     let v = el.dataset.v;
-    if (["goal", "rate", "maxReviews", "slideSeconds", "practiceCount"].includes(k)) v = Number(v);
+    if (["goal", "rate", "maxReviews", "slideSeconds", "practiceCount", "retention"].includes(k)) v = Number(v);
     store.state.settings[k] = v;
     store.save();
     render();

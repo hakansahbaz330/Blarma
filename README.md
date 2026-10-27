@@ -1,8 +1,8 @@
 # Kelime Bahçesi
 
-Blarma'dan esinlenen, **İngilizce ↔ Türkçe** kelime öğrenme uygulaması. Aralıklı tekrar, sesli telaffuz, her kelime için birkaç yaygın Türkçe karşılık ve Oxford **A1–C1** yapısında 4.954 kelime. Tamamen ücretsiz, hesapsız ve **çevrimdışı çalışan PWA** (bağımlılık yok, derleme yok).
+**Kelime Bahçesi**: kelimeleri ezberletmek yerine gerçekten öğrettirmeyi hedefleyen **İngilizce ↔ Türkçe** kelime uygulaması. Her kelimenin unutma eğrisini tahmin eder, tam unutmaya yaklaşırken tekrar ettirir; **A1–C1** arası 4.954 kelime, her biri için birkaç yaygın Türkçe karşılık. Tamamen ücretsiz, hesapsız ve **çevrimdışı çalışan PWA** (bağımlılık yok, derleme yok).
 
-Blarma incelemesi, kullanıcı yorumları ve tasarım kararları: [docs/ANALIZ.md](docs/ANALIZ.md).
+Belgeler: [bilimsel dayanak (BILIM.md)](docs/BILIM.md) · [rakip analizi (RAKIP.md)](docs/RAKIP.md) · [hukuki kontrol listesi (HUKUK.md)](docs/HUKUK.md) · [ilk analiz (ANALIZ.md)](docs/ANALIZ.md).
 
 ## Çalıştırma
 
@@ -36,7 +36,8 @@ NODE_PATH=$(npm root -g) node tests/e2e/offline.cjs   # çevrimdışı açılı�
 * **Yazma karoları:** harfleri dokunarak diz (ayardan klavyeye geçilir), ipucu ve yavaş telaffuz.
 * **Meditasyon, ses kaydı, slayt gösterisi, listeli pratik** (öğrendiklerim/bildiklerim listesinden "Pratik yap", X ile çıkarma), **resimli dinleme**.
 * **Örnek cümle çevirisi:** kartta "Cümleyi çevir", geri bildirimde ve kelime penceresinde Türkçe karşılığı (yapay zekâ yazımı, insan denetimi yok).
-* **Aralıklı tekrar:** 1 → 3 → ~8 → ~20 → ~50 → ~125 gün (en fazla 180); unutulunca sıfırlanır, 4+ unutma "zor kelime".
+* **Hafıza modeli:** her kelime için kararlılık ve güçlük izlenir; unutma eğrisi güç yasasıdır (R = 1/(1+t/9S)). İlk tekrar ertesi gün, sonra ≈ 3 → 8 → 18 → 37 → 72 gün (en fazla 365). Tekrar, hedef hatırlama olasılığına (%85/90/95) göre hesaplanır; cevaptan otomatik not çıkar. Birikince yeni kelime azalır. Bkz. docs/BILIM.md.
+* **Bahçem:** hafıza gücü (tahmini hatırlama %), her kelimenin aşaması (tohum → filiz → fidan → ağaç), unutmaya yaklaşan kelimeler, kişisel hatırlatıcı not.
 * **Seviye belirleme testi**, hedef seviyeler (A1–C1), günlük hedef (5–30).
 * **Kelimeler:** Türkçe/İngilizce arama, seviye/durum filtreleri, favori, "biliyorum", sıfırla, **kendi kelimeni ekle**, **çeviri hatası bildir**.
 * **Seri + seri dondurma, XP, istatistik** (14 gün, 7 günlük tekrar tahmini, seviye ilerlemesi).
@@ -66,10 +67,10 @@ tests/            birim (node --test) ve uçtan uca (Playwright) testler
 
 ## Kelime verisi
 
-`data-src/wordlist.psv` (kelime|seviye|tür) A1–C1 Oxford 3000/5000 yapısına uyan açık kaynaklı `cefr-analyzer` (MIT) paketinden alındı. Türkçe karşılıklar ve örnek cümleler (`translations.psv`, `extra_translations.psv`) bu proje için **yapay zekâ ile yazıldı ve tam olarak insan incelemesinden geçmedi**; hatalı gördüğünüz çeviriyi uygulamadan bildirebilir ya da dosyaları düzenleyip yeniden üretebilirsiniz:
+`data-src/wordlist.psv` (kelime|seviye|tür) A1–C1 seviyeli başlangıç listesi açık kaynaklı `cefr-analyzer` (MIT) paketinden alındı; **verinin özgün kaynağı doğrulanmadı** (bkz. docs/HUKUK.md). Türkçe karşılıklar ve örnek cümleler (`translations.psv`, `extra_translations.psv`) bu proje için **yapay zekâ ile yazıldı ve tam olarak insan incelemesinden geçmedi**; hatalı gördüğünüz çeviriyi uygulamadan bildirebilir ya da dosyaları düzenleyip yeniden üretebilirsiniz:
 
 ```bash
 python3 tools/build_words.py   # data/words.js üretir ve tutarlılığı doğrular
 ```
 
-Oxford listelerinin lisansını ticari yayın öncesinde kontrol edin.
+Kelime listesinin kaynağını ve lisansını ticari yayın öncesinde mutlaka doğrulayın.

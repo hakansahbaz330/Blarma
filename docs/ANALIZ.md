@@ -1,4 +1,6 @@
-# Blarma analizi ve Kelime Bahçesi'nin tasarım kararları
+# İlk analiz ve tasarım kararları (iç belge)
+
+> Bu ilk sürümün analiz notudur. Güncel mantık: [BILIM.md](BILIM.md), [RAKIP.md](RAKIP.md); hukuki konular: [HUKUK.md](HUKUK.md). Başka bir uygulamanın adını, görsellerini ya da metinlerini içermez; yalnızca özellik fikirleri incelenmiştir.
 
 > **Araştırmanın sınırı (önemli):** Bu oturumun ağ erişimi App Store, Google Play ve Blarma'nın kendi sitesini doğrudan açmaya izin vermedi (bağlantılar engellendi). Aşağıdaki mağaza yorumları, arama sonuçlarının döndürdüğü özetlerden ve üçüncü taraf sayfalardan derlendi; yorumların tamamını ya da son hâlini okumadım. Fiyatlar ve puanlar kaynaktan kaynağa değişiyor, bu yüzden "yaklaşık" okuyun. Uygulamayı kendi telefonunda açıp 1 yıldızlı ve 3 yıldızlı yorumları filtrelemek bu analizi doğrulamanın en iyi yoludur.
 
