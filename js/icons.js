@@ -36,5 +36,20 @@ export const icons = {
   skipNext: svg('<path d="m5 4 10 8-10 8zM19 4v16"/>'),
   trophy: svg('<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>'),
   sparkles: svg('<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8zM19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/>'),
+  sprout: svg('<path d="M12 21v-9"/><path d="M12 13c-4.5 0-6.5-2-6.5-5.5C10 7.5 12 9.5 12 13zM12 11c3.5 0 5.5-1.8 5.5-4.5-3.5 0-5.5 1.8-5.5 4.5z"/>'),
   check2: svg('<path d="m5 12 5 5 9-10"/>'),
 };
+
+/** Hafıza aşamaları: tohum, filiz, fidan, ağaç (kararlılığa göre, bkz. srs.js). */
+const plant = (body, size) =>
+  `<svg viewBox="0 0 48 48" width="${size}" height="${size}" aria-hidden="true"><path d="M8 41c4-5 28-5 32 0z" fill="var(--seed)" opacity=".55"/>${body}</svg>`;
+export const plants = [
+  (n = 40) => plant('<ellipse cx="24" cy="37" rx="3.2" ry="2.2" fill="var(--seed)"/>', n),
+  (n = 40) => plant('<path d="M24 38V25" stroke="var(--sprout)" stroke-width="2.6" stroke-linecap="round"/><path d="M24 28c-6 0-9-3-9-8 6 0 9 3 9 8zM24 25c5 0 8-3 8-7-5 0-8 3-8 7z" fill="var(--sprout)"/>', n),
+  (n = 40) => plant('<path d="M24 39V18" stroke="var(--sapling)" stroke-width="3" stroke-linecap="round"/><path d="M24 30c-7 0-10-4-10-9 7 0 10 4 10 9zM24 24c6 0 9-4 9-9-6 0-9 4-9 9zM24 19c-4-1-6-4-6-8 4 1 6 4 6 8z" fill="var(--sapling)"/>', n),
+  (n = 40) => plant('<path d="M24 40V24" stroke="var(--seed)" stroke-width="4" stroke-linecap="round"/><circle cx="24" cy="18" r="11" fill="var(--tree)"/><circle cx="16" cy="23" r="6" fill="var(--tree)"/><circle cx="32" cy="23" r="6" fill="var(--tree)"/>', n),
+];
+
+/** Uygulama işareti: yaprak çıkan filiz. */
+export const brandMark = (n = 28) =>
+  `<svg viewBox="0 0 32 32" width="${n}" height="${n}" aria-hidden="true"><rect width="32" height="32" rx="9" fill="var(--primary)"/><path d="M16 25V15" stroke="var(--primary-ink)" stroke-width="2.4" stroke-linecap="round"/><path d="M16 17c-5 0-7.5-2.5-7.5-6.5 5 0 7.5 2.5 7.5 6.5zM16 14.5c4 0 6.5-2.2 6.5-5.5-4 0-6.5 2.2-6.5 5.5z" fill="var(--primary-ink)"/></svg>`;

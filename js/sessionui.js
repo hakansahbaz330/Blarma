@@ -71,6 +71,7 @@ function next() {
   if (!t) return finish();
   ui.answered = false;
   ui.hinted = false;
+  ui.t0 = performance.now();
   setProgress(S.progress());
   if (t.kind === "intro") renderIntro(t);
   else renderExercise(t);
@@ -241,6 +242,7 @@ function feedbackHtml(ok, close, w, extra = "") {
       <div>${h(w.tr.join(" · "))}</div>
       ${w.example ? `<div class="ex" lang="en">${h(w.example)}</div>` : ""}
       ${w.exampleTr ? `<div class="ex-tr" lang="tr">${h(w.exampleTr)}</div>` : ""}
+      ${ctx.store.state.notes && ctx.store.state.notes[w.word] ? `<div class="ex-note">${h(ctx.store.state.notes[w.word])}</div>` : ""}
       ${extra}
       <div class="tools">
         <button class="btn sm" data-a="s:say" data-t="${h(w.word)}">${icons.speaker} Dinle</button>
@@ -253,7 +255,7 @@ function feedbackHtml(ok, close, w, extra = "") {
 function finishAnswer({ correct, close = false }) {
   const t = currentTask();
   const w = wordOf(t);
-  const res = S.submit({ correct, close, hinted: ui.hinted });
+  const res = S.submit({ correct, close, hinted: ui.hinted, ms: ui.t0 ? Math.round(performance.now() - ui.t0) : null });
   ui.answered = true;
   ui.lastWord = w.word;
   ui.xp += res ? res.xp : 0;

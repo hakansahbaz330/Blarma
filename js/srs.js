@@ -1,7 +1,18 @@
-// Aralıklı tekrar (SRS) mantığı. Saf fonksiyonlar: DOM ve depolamadan bağımsız, test edilebilir.
+// Hafıza modeli ve aralıklı tekrar. Saf fonksiyonlar: DOM ve depolamadan bağımsız, test edilebilir.
+//
+// Her kart iki sayıyla izlenir:
+//   st  kararlılık (gün): kelimenin hafızadan ~%90 olasılıkla hâlâ çağrılabildiği süre
+//   d   güçlük (1–10): kelimenin bu kişi için ne kadar zor olduğu
+// Unutma eğrisi güç yasasıdır: R(t) = (1 + t / (9·st))⁻¹  (t = son tekrardan beri geçen gün; t = st iken R = 0,9).
+// Bu, Ebbinghaus'tan beri bilinen "unutma önce hızlı, sonra yavaş olur" bulgusunu ve aralıklı tekrar
+// araştırmasındaki (Cepeda ve ark., 2006/2008) iki bulguyu kullanır:
+//   1) Aralık arttıkça kalıcılık artar; en iyi aralık, hatırlanması gereken süreyle birlikte uzar.
+//   2) Hafıza zayıfken (unutmaya yakın) başarılı bir çağırma, kararlılığı daha çok artırır ("istenen zorluk").
+// Formüller bu uygulamaya özgüdür; sabitler kabaca aralıklı tekrar yazınına göre ayarlanmıştır, kişisel
+// veriyle henüz kalibre edilmemiştir.
 //
 // Kart durumları: s = 1 öğreniliyor (oturum içinde), 2 tekrar aşamasında, 3 "biliyorum" (tekrardan çıkarıldı).
-// Notlar: 0 yanlış, 1 zor (ipucu / ikinci deneme), 2 iyi, 3 kolay.
+// Notlar: 0 yanlış, 1 zor (ipucu / yavaş / ikinci deneme), 2 iyi, 3 kolay.
 
 export const LEVELS = ["a1", "a2", "b1", "b2", "c1"];
 export const LEVEL_LABELS = {
@@ -12,69 +23,129 @@ export const LEVEL_LABELS = {
   c1: "C1 · İleri",
   k: "Kendi kelimem",
 };
-export const MAX_INTERVAL = 180;
-export const MIN_EASE = 1.3;
+
+export const MAX_INTERVAL = 365;
 export const LEECH_LAPSES = 4;
+export const TARGET_RETENTION = 0.9;
+export const LASTING_DAYS = 30;       // kararlılık bu değere ulaşınca kelime "kalıcı" sayılır
+
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 
 export function newProgress(today) {
-  return { s: 1, due: today, iv: 0, ease: 2.5, reps: 0, lapses: 0, ok: 0, seen: 0, fav: 0 };
+  return { s: 1, due: today, iv: 0, st: 0, d: 5, last: today, reps: 0, lapses: 0, ok: 0, seen: 0, fav: 0 };
+}
+
+/** Eski (kararlılık alanı olmayan) kartları yeni modele çevirir; yeni kartlara dokunmaz. */
+export function normalize(card) {
+  if (!card || card.st != null || card.s === 3) return card;
+  const ease = card.ease || 2.5;
+  const iv = card.iv || 0;
+  return { ...card, st: Math.max(iv, card.s === 2 ? 1 : 0), d: clamp(5 + (2.5 - ease) * 3, 1, 10), last: (card.due || 0) - iv };
+}
+
+/** Şu anki hatırlama olasılığı (0–1). Henüz hiç tekrarlanmamış kartlar için 0. */
+export function retrievability(card, today) {
+  const c = normalize(card);
+  if (!c || !c.st) return 0;
+  const t = Math.max(0, today - (c.last ?? today));
+  return 1 / (1 + t / (9 * c.st));
+}
+
+/** Hedef hatırlama olasılığına göre bir sonraki aralık (gün). */
+export function intervalFor(st, retention = TARGET_RETENTION) {
+  return clamp(Math.round(9 * st * (1 / retention - 1)), 1, MAX_INTERVAL);
+}
+
+// Kararlılık artışı: kolay kelimede, düşük kararlılıkta ve hafıza zayıfken daha büyük.
+function growth(c, R, grade) {
+  const base = 1.45 * ((11 - c.d) / 6) * Math.pow(c.st, -0.2) * Math.exp(2.2 * (1 - R));
+  const mult = grade === 1 ? 0.35 : grade === 3 ? 1.35 : 1;
+  return base * mult;
 }
 
 /**
  * Bir tekrar sonrası kartı günceller (değiştirmez, yeni nesne döner).
- * - Yanlış: aralık 1 güne iner, ease sınırlı düşer ("ease hell" önlemek için taban 1.3).
- * - Zor: aralık az büyür.
- * - İyi: 1 → 3 → ease'e göre büyüyen aralıklar (kabaca 1, 3, 8, 20, 50, 125 gün).
- * - Kolay: ease artar, aralık daha çok büyür.
+ * grade 0: unuttu → kararlılık düşer, ertesi gün yeniden sorulur.
+ * grade 1: zorlandı → kararlılık az artar. 2: iyi. 3: kolay.
  */
-export function review(card, grade, today) {
-  const c = { ...card, seen: (card.seen || 0) + 1 };
+export function review(card, grade, today, retention = TARGET_RETENTION) {
+  const c = { ...normalize(card), seen: (card.seen || 0) + 1 };
+  const R = c.st ? retrievability(c, today) : 1;
   if (grade >= 1) c.ok = (c.ok || 0) + 1;
+  const dShift = [1.0, 0.4, -0.1, -0.5][grade];
+  c.d = clamp(c.d + dShift + (5 - c.d) * 0.05, 1, 10);
   if (grade === 0) {
     c.lapses = (c.lapses || 0) + 1;
-    c.ease = Math.max(MIN_EASE, c.ease - 0.2);
-    c.iv = 1;
     c.reps = 0;
-  } else if (grade === 1) {
-    c.ease = Math.max(MIN_EASE, c.ease - 0.15);
-    c.iv = Math.max(c.iv + 1, Math.round((c.iv || 1) * 1.2));
-    c.reps = Math.max(1, c.reps);
+    c.st = Math.max(0.6, Math.min(c.st * 0.5, 0.5 * Math.pow(Math.max(c.st, 1), 0.65)));
   } else {
     c.reps = (c.reps || 0) + 1;
-    if (grade === 3) c.ease = Math.min(3, c.ease + 0.1);
-    let iv;
-    if (c.reps <= 1) iv = grade === 3 ? 3 : 1;
-    else if (c.reps === 2) iv = grade === 3 ? 5 : 3;
-    else iv = Math.round(c.iv * c.ease * (grade === 3 ? 1.3 : 1));
-    c.iv = Math.max(c.iv + 1, iv);
+    c.st = Math.min(MAX_INTERVAL * 2, Math.max(c.st, 0.8) * (1 + growth({ ...c, st: Math.max(c.st, 0.8) }, R, grade)));
   }
-  c.iv = Math.min(MAX_INTERVAL, c.iv);
+  c.iv = intervalFor(c.st, retention);
+  if (grade === 0) c.iv = 1;
   c.s = 2;
+  c.last = today;
   c.due = today + c.iv;
   return c;
 }
 
-/** Yeni kelime oturum içinde yeterince doğru yapıldığında tekrar aşamasına geçer. */
-export function graduate(card, mistakes, today) {
-  const grade = mistakes === 0 ? 2 : 1;
-  const base = { ...card, s: 2, iv: 0, reps: 0 };
-  if (mistakes >= 2) base.ease = Math.max(MIN_EASE, base.ease - 0.2);
-  const r = review(base, grade, today);
-  r.iv = 1;
-  r.due = today + 1;
-  r.reps = 1;
-  return r;
+/**
+ * Yeni kelime oturum içinde yeterince doğru yapıldığında tekrar aşamasına geçer.
+ * İlk tekrar ertesi gün: uykudan sonra yapılan ilk çağırma, kalıcılaşmayı en çok destekleyen adımdır.
+ */
+export function graduate(card, mistakes, today, retention = TARGET_RETENTION) {
+  const c = { ...normalize(card), s: 2, last: today, reps: 1 };
+  c.st = mistakes === 0 ? 1.2 : mistakes === 1 ? 0.9 : 0.7;
+  c.d = clamp(5 + mistakes * 0.8, 1, 10);
+  c.iv = Math.max(1, intervalFor(c.st, retention));
+  c.due = today + c.iv;
+  return c;
+}
+
+/**
+ * Cevaptan otomatik not: öğrenciden "ne kadar kolaydı?" diye sormaya gerek kalmaz.
+ * Yazarak ve hızlı doğru = kolay; ipucu, yakın yazım ya da çok yavaş doğru = zor.
+ * Çoktan seçmeli sorularda şans payı vardır, bu yüzden "kolay" yalnızca yazılı cevapta verilir.
+ */
+export function gradeFor({ correct, hinted = false, close = false, typed = false, ms = null, reps = 0 }) {
+  if (!correct) return 0;
+  if (hinted || close) return 1;
+  if (ms != null && ms > (typed ? 25000 : 12000)) return 1;
+  if (typed && reps >= 2 && ms != null && ms < 9000) return 3;
+  return 2;
 }
 
 export function isLeech(card) {
   return !!card && (card.lapses || 0) >= LEECH_LAPSES;
 }
 
-/** Vadesi gelmiş kartların kelimeleri; en geciken önce. */
+/** Hafıza aşamaları (bahçe benzetmesi): kararlılığa göre. */
+export const STAGES = [
+  { id: "seed", label: "Tohum", hint: "Yeni ekildi" },
+  { id: "sprout", label: "Filiz", hint: "Birkaç gün dayanır" },
+  { id: "sapling", label: "Fidan", hint: "Birkaç hafta dayanır" },
+  { id: "tree", label: "Ağaç", hint: "Aylarca kalıcı" },
+];
+
+export function stageIndex(card) {
+  const c = normalize(card);
+  if (!c || c.s === 3) return -1;
+  if (c.s === 1 || !c.st) return 0;
+  return c.st < 3 ? 0 : c.st < 10 ? 1 : c.st < LASTING_DAYS ? 2 : 3;
+}
+
+export function isLasting(card) {
+  const c = normalize(card);
+  return !!c && c.s === 2 && c.st >= LASTING_DAYS;
+}
+
+/** Vadesi gelmiş kartların kelimeleri; hatırlama olasılığı en düşük olan önce. */
 export function dueWords(prog, today) {
   return Object.entries(prog)
     .filter(([, c]) => c.s === 2 && c.due <= today)
-    .sort((a, b) => a[1].due - b[1].due)
+    .map(([w, c]) => [w, retrievability(c, today)])
+    .sort((a, b) => a[1] - b[1])
     .map(([w]) => w);
 }
 
@@ -87,6 +158,30 @@ export function forecast(prog, today, n = 7) {
     if (d < n) out[d]++;
   }
   return out;
+}
+
+/** Tekrar aşamasındaki kelimelerin şu anki ortalama hatırlama olasılığı (0–1); kelime yoksa null. */
+export function memoryStrength(prog, today) {
+  let n = 0, sum = 0;
+  for (const c of Object.values(prog)) {
+    if (c.s !== 2) continue;
+    n++;
+    sum += retrievability(c, today);
+  }
+  return n ? sum / n : null;
+}
+
+/**
+ * Bugün kaç yeni kelime alınmalı? Bekleyen tekrarlar birikmişse ya da son günlerde tekrar başarısı düşmüşse
+ * yeni kelime azaltılır: hafıza, yeni bilgiyle boğulmadan önce eskisini pekiştirmeli.
+ * @returns {{count:number, reason:string|null}}
+ */
+export function newWordBudget({ goal, doneToday, dueCount, recentAccuracy }) {
+  const left = Math.max(0, goal - doneToday);
+  if (dueCount >= 30) return { count: 0, reason: "backlog" };
+  if (dueCount >= 18) return { count: Math.min(left, Math.ceil(goal / 3)), reason: "backlog" };
+  if (recentAccuracy != null && recentAccuracy < 0.7) return { count: Math.min(left, Math.ceil(goal / 2)), reason: "accuracy" };
+  return { count: left, reason: null };
 }
 
 /**

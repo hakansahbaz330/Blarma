@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { review, graduate, newProgress, dueWords, forecast, pickNewWords, hashKey, MAX_INTERVAL, MIN_EASE } from "../js/srs.js";
+import { review, graduate, newProgress, dueWords, forecast, pickNewWords, hashKey, MAX_INTERVAL, retrievability, intervalFor, gradeFor, normalize, stageIndex, memoryStrength, newWordBudget } from "../js/srs.js";
 import { checkTyped, toWordObjects, buildIndex, distractors, clozeParts, makeExercise, pickType } from "../js/exercises.js";
 import { levenshtein, normalizeAnswer, mulberry32, dayNumber } from "../js/util.js";
 import { createStore } from "../js/store.js";
@@ -23,24 +23,78 @@ test("veri: 4954 kelime, A1-C1, her kelimede en az 1 Türkçe karşılık", () =
   assert.ok(multi / words.length > 0.9, "kelimelerin %90+ında birden fazla karşılık olmalı");
 });
 
-test("srs: ilk iyi cevap 1 gün, sonra 3 gün, sonra büyüyen aralık", () => {
+test("srs: ilk tekrar ertesi gün, sonra aralıklar yaklaşık 2-3 kat büyür", () => {
   let c = graduate(newProgress(100), 0, 100);
   assert.equal(c.due, 101);
-  c = review(c, 2, 101);
-  assert.equal(c.iv, 3);
-  c = review(c, 2, 104);
-  assert.ok(c.iv >= 7 && c.iv <= 9, `iv=${c.iv}`);
-  for (let i = 0; i < 10; i++) c = review(c, 2, c.due);
+  const ivs = [];
+  for (let i = 0; i < 6; i++) { c = review(c, 2, c.due); ivs.push(c.iv); }
+  assert.ok(ivs[0] >= 2 && ivs[0] <= 4, `ilk aralık ${ivs}`);
+  for (let i = 1; i < ivs.length; i++) assert.ok(ivs[i] > ivs[i - 1] * 1.5, `aralık büyümüyor: ${ivs}`);
+  for (let i = 0; i < 12; i++) c = review(c, 2, c.due);
   assert.equal(c.iv, MAX_INTERVAL);
 });
 
-test("srs: yanlış cevap aralığı sıfırlar, ease tabanın altına inmez", () => {
-  let c = { ...newProgress(0), s: 2, iv: 50, reps: 5, ease: 1.4 };
-  c = review(c, 0, 10);
-  assert.equal(c.iv, 1);
-  assert.equal(c.lapses, 1);
-  for (let i = 0; i < 10; i++) c = review(c, 0, 10);
-  assert.equal(c.ease, MIN_EASE);
+test("srs: unutma eğrisi t=kararlılık iken %90, süre uzadıkça düşer; aralık hedef oranla uyumlu", () => {
+  const c = { s: 2, st: 10, last: 0, due: 10 };
+  assert.ok(Math.abs(retrievability(c, 10) - 0.9) < 1e-9);
+  assert.ok(retrievability(c, 40) < retrievability(c, 10));
+  assert.equal(intervalFor(10, 0.9), 10);
+  assert.ok(intervalFor(10, 0.8) > intervalFor(10, 0.9));
+});
+
+test("srs: geç yapılan başarılı tekrar (hafıza zayıfken) kararlılığı daha çok artırır", () => {
+  const base = graduate(newProgress(0), 0, 0);
+  const onTime = review(review(base, 2, base.due), 2, base.due + 3);
+  const late = review(review(base, 2, base.due), 2, base.due + 12);
+  assert.ok(late.st > onTime.st, `${late.st} > ${onTime.st}`);
+});
+
+test("srs: zor cevap az, kolay cevap çok artırır; yanlış kararlılığı düşürür ve ertesi güne alır", () => {
+  let c = graduate(newProgress(0), 0, 0);
+  c = review(c, 2, c.due);
+  const hard = review(c, 1, c.due), good = review(c, 2, c.due), easy = review(c, 3, c.due);
+  assert.ok(hard.st < good.st && good.st < easy.st);
+  const lapse = review(c, 0, c.due);
+  assert.equal(lapse.iv, 1);
+  assert.ok(lapse.st < c.st);
+  assert.equal(lapse.lapses, 1);
+  assert.ok(lapse.d > c.d && easy.d < c.d, "güçlük yanlışta artar, kolayda azalır");
+});
+
+test("srs: eski kartlar yeni modele çevrilir, yeni kartlara dokunulmaz", () => {
+  const old = { s: 2, due: 20, iv: 10, ease: 2.5, reps: 3, lapses: 0, ok: 3, seen: 3, fav: 0 };
+  const n = normalize(old);
+  assert.equal(n.st, 10);
+  assert.equal(n.last, 10);
+  assert.equal(normalize(n), n);
+});
+
+test("srs: otomatik not — doğru/hızlı, ipucu, yakın yazım, yavaş", () => {
+  assert.equal(gradeFor({ correct: false }), 0);
+  assert.equal(gradeFor({ correct: true, hinted: true }), 1);
+  assert.equal(gradeFor({ correct: true, close: true, typed: true }), 1);
+  assert.equal(gradeFor({ correct: true, ms: 20000 }), 1);
+  assert.equal(gradeFor({ correct: true, ms: 3000 }), 2, "çoktan seçmeli hızlı doğru 'kolay' sayılmaz (şans payı)");
+  assert.equal(gradeFor({ correct: true, typed: true, reps: 3, ms: 4000 }), 3);
+});
+
+test("srs: aşamalar ve hafıza gücü", () => {
+  assert.equal(stageIndex({ s: 1 }), 0);
+  assert.equal(stageIndex({ s: 2, st: 5, last: 0, due: 5 }), 1);
+  assert.equal(stageIndex({ s: 2, st: 15, last: 0, due: 15 }), 2);
+  assert.equal(stageIndex({ s: 2, st: 45, last: 0, due: 45 }), 3);
+  assert.equal(stageIndex({ s: 3 }), -1);
+  assert.equal(memoryStrength({}, 5), null);
+  const m = memoryStrength({ a: { s: 2, st: 10, last: 0, due: 10 } }, 10);
+  assert.ok(Math.abs(m - 0.9) < 1e-9);
+});
+
+test("srs: tekrarlar birikince yeni kelime azalır, başarı düşükse de azalır", () => {
+  assert.deepEqual(newWordBudget({ goal: 10, doneToday: 0, dueCount: 3, recentAccuracy: 0.9 }), { count: 10, reason: null });
+  assert.equal(newWordBudget({ goal: 10, doneToday: 4, dueCount: 3, recentAccuracy: null }).count, 6);
+  assert.equal(newWordBudget({ goal: 10, doneToday: 0, dueCount: 20, recentAccuracy: 0.9 }).count, 4);
+  assert.equal(newWordBudget({ goal: 10, doneToday: 0, dueCount: 40, recentAccuracy: 0.9 }).count, 0);
+  assert.equal(newWordBudget({ goal: 10, doneToday: 0, dueCount: 2, recentAccuracy: 0.6 }).count, 5);
 });
 
 test("srs: dueWords ve forecast", () => {
@@ -314,7 +368,7 @@ test("lemma: çekimli kelimeler sözlükteki karşılığına bağlanır", () =>
 
 test("hikâye kütüphanesi: paragraflar eşleşir, kelimelerin çoğu sözlükte bulunur", () => {
   const src = readFileSync(new URL("../data/stories.js", import.meta.url), "utf8");
-  const stories = new Function("window", src + "; return window.BLARMA_STORIES;")({});
+  const stories = new Function("window", src + "; return window.KB_STORIES;")({});
   assert.equal(stories.length, 10);
   const ids = new Set();
   for (const s of stories) {
@@ -329,11 +383,11 @@ test("hikâye kütüphanesi: paragraflar eşleşir, kelimelerin çoğu sözlükt
 
 test("emoji verisi: yalnızca listedeki kelimeler, görsel testi 4 farklı seçenek üretir", () => {
   const src = readFileSync(new URL("../data/emoji.js", import.meta.url), "utf8");
-  const map = new Function("window", src + "; return window.BLARMA_EMOJI;")({});
+  const map = new Function("window", src + "; return window.KB_EMOJI;")({});
   const keys = Object.keys(map);
   assert.ok(keys.length > 500);
   assert.ok(keys.every((k) => index.byWord.has(k)), "emoji anahtarları kelime listesinde olmalı");
-  globalThis.window = { BLARMA_EMOJI: map };
+  globalThis.window = { KB_EMOJI: map };
   const rng = mulberry32(5);
   for (const w of keys.slice(0, 60).map((k) => index.byWord.get(k))) {
     const ex = makeExercise("emoji_mcq", w, index, rng, {});

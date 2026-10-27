@@ -1,5 +1,5 @@
 // Kelime görselleri: somut kelimeler için emoji, diğerleri için seviye renginde harf karosu.
-const map = () => (typeof window !== "undefined" && window.BLARMA_EMOJI) || {};
+const map = () => (typeof window !== "undefined" && window.KB_EMOJI) || {};
 
 export function emojiFor(word) {
   return map()[word] || "";

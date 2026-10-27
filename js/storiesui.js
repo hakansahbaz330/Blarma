@@ -10,7 +10,7 @@ import { tileHtml } from "./visuals.js";
 import { pickStoryWords, generateStory, renderStoryHtml } from "./stories.js";
 import { escapeHtml as h, dayNumber, foldTurkish } from "./util.js";
 
-export const stories = () => (typeof window !== "undefined" && window.BLARMA_STORIES) || [];
+export const stories = () => (typeof window !== "undefined" && window.KB_STORIES) || [];
 export const storyState = { q: "", filter: "all", showTr: false, current: null, gen: { source: "recent", loading: false, story: null, error: "", showTr: false } };
 
 const LV_NAME = { a1: "Başlangıç", a2: "Temel", b1: "Orta", b2: "Orta üstü", c1: "İleri" };

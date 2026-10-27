@@ -1,5 +1,5 @@
 // Çevrimdışı, kademeli kısa hikâyeler (özgün metin). en[i] ile tr[i] paragraf paragraf eşleşir.
-window.BLARMA_STORIES = [
+window.KB_STORIES = [
   {
     id: "my-day", title: "My Day", level: "a1", emoji: "🌅",
     en: [

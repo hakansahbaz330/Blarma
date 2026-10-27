@@ -13,7 +13,7 @@ const URL = process.env.URL || "http://localhost:8080/";
   await context.setOffline(true);
   await page.reload();
   await page.waitForSelector(".modal, .ring", { timeout: 5000 });
-  const n = await page.evaluate(() => window.BLARMA_WORDS.length);
+  const n = await page.evaluate(() => window.KB_WORDS.length);
   if (n !== 4954) { console.error("FAIL: kelimeler çevrimdışı yüklenmedi", n); process.exit(1); }
   console.log("ok - çevrimdışı açıldı,", n, "kelime yüklü");
   await browser.close();

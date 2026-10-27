@@ -13,7 +13,7 @@ export function posLabel(pos) {
   return pos.split("/").map((p) => POS_TR[p] || p).join(" · ");
 }
 
-/** window.BLARMA_WORDS satırlarını nesnelere çevirir. */
+/** window.KB_WORDS satırlarını nesnelere çevirir. */
 export function toWordObjects(rows) {
   return rows.map(([word, level, pos, tr, example, exampleTr = ""]) => ({ word, level, pos, tr, example, exampleTr }));
 }

@@ -1,4 +1,5 @@
 import { dayNumber } from "./util.js";
+import { normalize } from "./srs.js";
 
 const KEY = "kelimebahcesi.v1";
 
@@ -14,6 +15,7 @@ export const DEFAULT_SETTINGS = {
   slideSeconds: 6,     // slayt gösterisi hızı
   practiceCount: 10,   // pratik turu uzunluğu
   writeMode: (typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse)").matches) ? "tiles" : "keyboard",
+  retention: 0.9,      // hedef hatırlama olasılığı (daha yüksek = daha sık tekrar)
   maxReviews: 40,      // bir oturumdaki en fazla tekrar
   apiKey: "",          // isteğe bağlı: hikâyeler için kullanıcının kendi Anthropic anahtarı
   model: "claude-haiku-5-5",
@@ -28,6 +30,7 @@ export function defaultState() {
     settings: { ...DEFAULT_SETTINGS },
     prog: {},            // kelime -> kart (srs.js)
     custom: [],          // kullanıcı kelimeleri
+    notes: {},           // kelime -> kişisel hatırlatıcı not
     flags: {},           // hatalı çeviri bildirimleri: kelime -> not
     stories: { read: {}, fav: {} },   // hikâye id -> okunduğu gün / favori
     stats: { xp: 0, streak: 0, best: 0, last: 0, freezes: 1, daily: {} },
@@ -40,7 +43,8 @@ function migrate(s) {
     ...d, ...s,
     settings: { ...d.settings, ...(s.settings || {}) },
     stats: { ...d.stats, ...(s.stats || {}), daily: { ...(s.stats && s.stats.daily) } },
-    prog: s.prog || {},
+    prog: Object.fromEntries(Object.entries(s.prog || {}).map(([w, c]) => [w, normalize(c)])),
+    notes: s.notes || {},
     custom: s.custom || [],
     flags: s.flags || {},
     stories: { read: {}, fav: {}, ...(s.stories || {}) },
@@ -76,7 +80,7 @@ export function createStore(storage = (typeof localStorage !== "undefined" ? loc
     ds.xp += xp;
     state.stats.xp += xp;
     if (isNew === "graduated") ds.n++;
-    if (isNew === "review") ds.r++;
+    if (isNew === "review") { ds.r++; if (ok) ds.rok = (ds.rok || 0) + 1; }
     touchStreak(day);
   }
 

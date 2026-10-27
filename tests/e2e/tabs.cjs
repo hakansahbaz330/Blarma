@@ -13,7 +13,7 @@ const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exitCode
   await page.goto(URL);
   await page.waitForSelector(".modal");
   await page.click('[data-a="onb-a1"]');
-  await page.waitForSelector(".task");
+  await page.waitForSelector(".plan");
   await page.screenshot({ path: `${OUT}/20-learn.png`, fullPage: true });
   assert((await page.locator(".wod-item").count()) === 6, "günün kelimeleri 6 görsel");
 
@@ -21,7 +21,7 @@ const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exitCode
   await page.evaluate(() => {
     const { store, ctx } = window.__kb;
     const today = Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / 86400000);
-    const have = ctx.words.filter((w) => window.BLARMA_EMOJI[w.word] && w.level === "a1").slice(0, 12);
+    const have = ctx.words.filter((w) => window.KB_EMOJI[w.word] && w.level === "a1").slice(0, 12);
     have.forEach((w) => { store.state.prog[w.word] = { s: 2, due: today + 5, iv: 3, ease: 2.5, reps: 2, lapses: 0, ok: 2, seen: 2, fav: 0 }; });
     store.save(); window.__kb.render();
   });
@@ -97,6 +97,7 @@ const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exitCode
   await page.click('[data-a="nav"][data-v="practice"]');
 
   // Meditasyon
+  await page.evaluate(() => { const d = document.querySelector('.more-modes'); if (d) d.open = true; });
   await page.click('[data-a="pr:meditate"]');
   await page.waitForSelector("#med-range");
   await page.screenshot({ path: `${OUT}/27-meditation-setup.png` });
@@ -108,6 +109,7 @@ const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exitCode
   await page.click('[data-a="med:close"]');
 
   // Slayt gösterisi
+  await page.evaluate(() => { const d = document.querySelector('.more-modes'); if (d) d.open = true; });
   await page.click('[data-a="pr:slides"]');
   await page.waitForSelector("#slide .big");
   await page.screenshot({ path: `${OUT}/23-slides.png` });
@@ -164,8 +166,8 @@ const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exitCode
 
   // Günün hikâyesi görevi
   await page.click('[data-a="nav"][data-v="learn"]');
-  await page.waitForSelector(".task");
-  assert((await page.locator(".task.done").count()) >= 1, "günün hikâyesi görevi tamamlandı (seri sayacı)");
+  await page.waitForSelector(".plan");
+  assert((await page.locator(".plan-row.done").count()) >= 1, "günün hikâyesi görevi tamamlandı (seri sayacı)");
 
   assert(errors.length === 0, "konsol hatası yok " + JSON.stringify(errors));
   await browser.close();

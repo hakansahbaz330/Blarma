@@ -25,7 +25,7 @@ const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exitCode
     store.save();
     window.__kb.render();
   });
-  assert((await page.textContent("#app")).includes("24 kelime seni bekliyor"), "24 tekrar bekliyor");
+  assert((await page.textContent("#app")).includes("24 kelime unutmaya yaklaştı"), "24 tekrar bekliyor");
   await page.screenshot({ path: `${OUT}/10-home-due.png` });
   await page.click('[data-a="task-review"]');
   await page.waitForSelector(".sess-body");

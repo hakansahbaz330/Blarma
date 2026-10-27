@@ -2,11 +2,12 @@
 import { ctx } from "./ctx.js";
 import { createStore } from "./store.js";
 import { toWordObjects, buildIndex, posLabel, shortMeaning, clozeParts } from "./exercises.js";
-import { LEVELS, dueWords, isLeech, forecast, newProgress } from "./srs.js";
+import { LEVELS, STAGES, dueWords, isLeech, isLasting, forecast, newProgress, memoryStrength, stageIndex, retrievability } from "./srs.js";
 import { dayNumber, escapeHtml as h, foldTurkish, shuffle } from "./util.js";
-import { icons } from "./icons.js";
+import { icons, plants, brandMark } from "./icons.js";
 import { englishVoices, caps as speechCaps } from "./speech.js";
 import { startSession, startPlacement, say } from "./sessionui.js";
+import { planNew } from "./session.js";
 import { startSlideshow } from "./slideshow.js";
 import { openMeditation } from "./meditation.js";
 import { startRecorder, recordingSupported } from "./recorder.js";
@@ -17,7 +18,7 @@ import { hashKey } from "./srs.js";
 
 const store = createStore();
 ctx.store = store;
-const baseWords = toWordObjects(window.BLARMA_WORDS || []);
+const baseWords = toWordObjects(window.KB_WORDS || []);
 
 function rebuild() {
   const custom = store.state.custom.map((c) => ({ word: c.word, level: "k", pos: c.pos || "n", tr: c.tr, example: c.example || "", exampleTr: "" }));
@@ -105,9 +106,11 @@ function dailyState() {
   const due = dueWords(st.prog, today).filter((w) => ctx.index.byWord.has(w)).length;
   const c = counts();
   const goal = st.settings.goal;
-  const leftNew = Math.max(0, goal - ds.n);
-  return { today, ds, due, c, goal, leftNew,
-    newDone: leftNew === 0 && c.learning === 0, reviewDone: due === 0, storyDone: storyReadToday(today) };
+  const plan = planNew(store, today);
+  const left = Math.max(0, goal - ds.n);
+  const newDone = left === 0 && c.learning === 0;
+  return { today, ds, due, c, goal, plan, leftNew: plan.count, newDone, held: !newDone && plan.count === 0 && left > 0,
+    reviewDone: due === 0, storyDone: storyReadToday(today) };
 }
 
 function wordsOfTheDay(today) {
@@ -117,43 +120,77 @@ function wordsOfTheDay(today) {
   return fallback.slice().sort((a, b) => hashKey(a.word, today) - hashKey(b.word, today)).slice(0, 6);
 }
 
-function taskCard({ icon, tone, title, sub, done, action }) {
-  return `<button class="task ${done ? "done" : ""}" data-a="${action}">
-    <span class="ticon tone-${tone}">${icon}</span>
+function planRow({ title, sub, done, action, held }) {
+  return `<button class="plan-row ${done ? "done" : ""}" data-a="${action}">
+    <span class="plan-mark" aria-hidden="true">${done ? icons.check2 : ""}</span>
     <span class="grow"><b>${title}</b><span class="tsub">${sub}</span></span>
-    <span class="tcheck" aria-label="${done ? "tamamlandı" : "yapılacak"}">${done ? icons.check2 : icons.chevronRight}</span>
+    ${done ? "" : icons.chevronRight}
   </button>`;
+}
+
+function ringSvg(pct, label, sub) {
+  const r = 38, c = 2 * Math.PI * r;
+  return `<div class="ring2" role="img" aria-label="${label}">
+    <svg viewBox="0 0 96 96" width="96" height="96"><circle cx="48" cy="48" r="${r}" fill="none" stroke="var(--surface-2)" stroke-width="9"/>
+      <circle cx="48" cy="48" r="${r}" fill="none" stroke="var(--primary)" stroke-width="9" stroke-linecap="round" stroke-dasharray="${(c * pct) / 100} ${c}" transform="rotate(-90 48 48)"/></svg>
+    <div><b>${label}</b><small>${sub}</small></div></div>`;
+}
+
+function memoryStrip(today) {
+  const m = memoryStrength(store.state.prog, today);
+  const lasting = Object.values(store.state.prog).filter(isLasting).length;
+  if (m == null) {
+    return `<button class="mem-strip" data-a="nav" data-v="progress"><span class="mem-icon">${plants[0](34)}</span><span class="grow"><b>Hafıza bahçen</b><span class="tsub">İlk kelimelerini öğrenince burada büyür.</span></span>${icons.chevronRight}</button>`;
+  }
+  return `<button class="mem-strip" data-a="nav" data-v="progress"><span class="mem-icon">${plants[lasting ? 3 : 2](34)}</span><span class="grow"><b>Hafıza gücü %${Math.round(m * 100)}</b><span class="tsub">Öğrendiğin kelimeleri şu an hatırlama olasılığın${lasting ? ` · ${lasting} kelime kalıcı` : ""}</span></span>${icons.chevronRight}</button>`;
 }
 
 function learnView() {
   const st = store.state;
   const d = dailyState();
   const streak = store.currentStreak(d.today);
-  const allDone = d.newDone && d.reviewDone && d.storyDone;
+  const allDone = (d.newDone || d.held) && d.reviewDone && d.storyDone;
   const sod = storyOfTheDay(d.today);
-  const accent = st.settings.accent === "en-GB" ? "🇬🇧 İngilizce (UK)" : "🇺🇸 İngilizce (US)";
   const wod = wordsOfTheDay(d.today);
+  const todoNew = d.leftNew + d.c.learning;
+  const total = d.ds.r + d.due + d.ds.n + todoNew;
+  const done = d.ds.r + d.ds.n;
+  const pct = total ? Math.round((100 * done) / total) : 100;
+  const mins = Math.max(1, Math.round((d.due * 12 + todoNew * 28) / 60));
+  const note = d.plan.reason === "backlog"
+    ? "Bekleyen tekrarlar biriktiği için bugün yeni kelimeyi azalttık. Önce eskileri pekiştirmek kalıcılığı artırır."
+    : d.plan.reason === "accuracy" ? "Son tekrarlarda zorlandığın için bugün yeni kelimeyi azalttık." : "";
   return `
     <div class="topbar">
-      <button class="pill-btn" data-a="lang" aria-label="Dil">${accent} ${small(icons.chevronRight, 14).replace("<svg", '<svg style="transform:rotate(90deg)"')}</button>
+      <div class="brand">${brandMark(30)}<span>Kelime Bahçesi</span></div>
       <div class="row">
-        <span class="chip streak big" title="Günlük seri">${small(icons.flame)} ${streak}</span>
-        <button class="avatar" data-a="go-settings" aria-label="Ayarlar ve profil">${icons.user}</button>
+        <span class="chip streak big" title="Üst üste çalışılan gün">${small(icons.flame)} ${streak}</span>
+        <button class="avatar" data-a="go-settings" aria-label="Ayarlar">${icons.gear}</button>
       </div>
     </div>
-    <h1 class="page-title">${allDone ? "Tüm görevler tamamlandı 🎉" : "Bugünün görevleri"}</h1>
-    <div class="stack">
-      ${taskCard({ icon: icons.book, tone: "blue", title: "Yeni kelimeler öğren", sub: d.newDone ? `${d.goal}/${d.goal} tamam` : `${d.ds.n}/${d.goal} · ${d.leftNew}${d.c.learning ? " + " + d.c.learning + " yarım kalan" : ""} kaldı`, done: d.newDone, action: "task-new" })}
-      ${taskCard({ icon: icons.shuffle, tone: "orange", title: "Tekrar et", sub: d.reviewDone ? "Bugün tekrar yok" : `${d.due} kelime seni bekliyor`, done: d.reviewDone, action: "task-review" })}
-      ${taskCard({ icon: icons.sparkles, tone: "purple", title: "Günün hikâyesi", sub: sod ? h(sod.title) : "Yakında", done: d.storyDone, action: "task-story" })}
-    </div>
-    ${allDone
-      ? `<div class="cta-block"><p class="muted">Daha fazla çalışmak ister misin? Ek görevler var.</p><button class="btn primary block lg3d" data-a="more-tasks">Daha fazla görev</button></div>`
-      : `<button class="btn primary block lg3d" style="margin-top:16px" data-a="start-daily">${d.ds.q ? "Devam et" : "Çalışmaya başla"}</button>`}
-    ${!st.placed ? `<section class="card row" style="margin-top:16px">
+    <section class="card plan">
+      <div class="plan-head">
+        ${ringSvg(pct, allDone ? "Tamam" : `%${pct}`, allDone ? "bugün için" : `≈ ${mins} dk`)}
+        <div class="grow">
+          <h1 class="plan-title">${allDone ? "Bugünlük bu kadar" : "Bugünkü plan"}</h1>
+          <p class="muted">${allDone ? "Kelimelerin dinleniyor; uyku, hafızayı pekiştirir." : `${d.due} tekrar · ${todoNew} yeni kelime`}</p>
+        </div>
+      </div>
+      ${note ? `<p class="plan-note">${note}</p>` : ""}
+      <div class="plan-list">
+        ${planRow({ title: "Tekrar", sub: d.reviewDone ? "Bugün tekrar yok" : `${d.due} kelime unutmaya yaklaştı`, done: d.reviewDone, action: "task-review" })}
+        ${planRow({ title: "Yeni kelimeler", sub: d.newDone ? `${d.goal} kelime tamam` : d.held ? "Önce tekrarlar" : `${d.ds.n}/${d.goal}${d.c.learning ? ` · ${d.c.learning} yarım kalan` : ""}`, done: d.newDone, action: "task-new" })}
+        ${planRow({ title: "Günün hikâyesi", sub: sod ? h(sod.title) : "Yakında", done: d.storyDone, action: "task-story" })}
+      </div>
+      ${allDone
+        ? `<button class="btn block" data-a="more-tasks">Yine de biraz daha çalış</button>`
+        : `<button class="btn primary block lg3d" data-a="start-daily">${d.ds.q ? "Devam et" : "Başla"}</button>`}
+    </section>
+    ${memoryStrip(d.today)}
+    ${!st.placed ? `<section class="card row" style="margin-top:12px">
         <div class="grow"><b>Seviyeni ölçelim mi?</b><div class="muted" style="font-size:14px">Yaklaşık 3 dakika; bildiğin kelimeleri atla.</div></div>
         <button class="btn soft" data-a="placement">Teste başla</button></section>` : ""}
-    <h2 class="sec">Günün kelimeleri</h2>
+    <h2 class="sec">Bugün tanışabileceğin kelimeler</h2>
     <div class="wod">${wod.map((w) => `<button class="wod-item" data-a="w-open" data-w="${h(w.word)}">${tileHtml(w, "fill")}<span class="wod-w" lang="en">${h(w.word)}</span><span class="wod-m">${h(w.tr[0])}</span></button>`).join("")}</div>`;
 }
 
@@ -171,15 +208,15 @@ function moreTasksSheet() {
 /* ---------------------------------------------------------------- PRATİK YAP */
 
 const PRACTICE = [
-  { id: "mix", icon: icons.shuffle, tone: "orange", title: "Karma pratik", sub: "Her türden 10 soru", min: 4 },
+  { id: "mix", main: true, icon: icons.shuffle, tone: "orange", title: "Karma pratik", sub: "Her türden 10 soru", min: 4 },
   { id: "meditate", icon: icons.sparkles, tone: "purple", title: "Meditasyon", sub: "Sakin bir ortamda, sesli kelime turu", min: 3 },
   { id: "slides", icon: icons.slides, tone: "green", title: "Slayt gösterisi", sub: "Kelimeleri sesli, otomatik izle", min: 2 },
-  { id: "listen", icon: icons.headphones, tone: "blue", title: "Dinleme", sub: "Duyduğun kelimeyi ya da görseli seç", type: "listen_mcq", min: 4, needAudio: true },
+  { id: "listen", main: true, icon: icons.headphones, tone: "blue", title: "Dinleme", sub: "Duyduğun kelimeyi ya da görseli seç", type: "listen_mcq", min: 4, needAudio: true },
   { id: "speak", icon: icons.mic, tone: "pink", title: "Telaffuz", sub: "Yüksek sesle söyle", type: "speak", min: 3, needSpeech: true },
   { id: "record", icon: icons.mic, tone: "red", title: "Ses kayıt", sub: "Kendi sesini kaydet ve karşılaştır", min: 2, needRecorder: true },
-  { id: "write", icon: icons.pencil, tone: "amber", title: "Yazma", sub: "Türkçesinden İngilizcesini yaz", type: "type_en", min: 3 },
+  { id: "write", main: true, icon: icons.pencil, tone: "amber", title: "Yazma", sub: "Türkçesinden İngilizcesini yaz", type: "type_en", min: 3 },
   { id: "dictation", icon: icons.speaker, tone: "indigo", title: "Dikte", sub: "Duyduğunu yaz", type: "dictation", min: 3, needAudio: true },
-  { id: "visual", icon: icons.eye, tone: "teal", title: "Görsel testi", sub: "Görsele bakıp kelimeyi seç", type: "emoji_mcq", min: 4, needEmoji: true },
+  { id: "visual", main: true, icon: icons.eye, tone: "teal", title: "Görsel testi", sub: "Görsele bakıp kelimeyi seç", type: "emoji_mcq", min: 4, needEmoji: true },
   { id: "translate", icon: icons.languages, tone: "orange", title: "Çeviri testi", sub: "İngilizce → Türkçe", type: "mcq_en_tr", min: 4 },
   { id: "reverse", icon: icons.languages, tone: "purple", title: "Ters çeviri", sub: "Türkçe → İngilizce", type: "mcq_tr_en", min: 4 },
   { id: "cloze", icon: icons.fill, tone: "red", title: "Cümle tamamlama", sub: "Boşluğa uyan kelimeyi bul", type: "cloze", min: 4, needCloze: true },
@@ -222,27 +259,34 @@ function practiceView() {
   const n = practicePool().length;
   const src = (v, l) => `<button data-a="pr-src" data-v="${v}" aria-pressed="${practiceState.source === v}">${l}</button>`;
   return `
-    <div class="page-head"><h1>Pratik yap</h1></div>
+    <div class="page-head"><h1>Pratik</h1></div>
     <div class="field"><label>Hangi kelimelerle? <span class="muted">(${n} kelime)</span></label>
       <div class="seg">${src("learned", "Öğrendiklerim")}${src("hard", "Zor kelimelerim")}${src("fav", "Favorilerim")}</div></div>
     <div class="field"><label>Tur uzunluğu</label><div class="seg">${[10, 15, 20].map((n) => `<button data-a="set" data-k="practiceCount" data-v="${n}" aria-pressed="${store.state.settings.practiceCount === n}">${n} soru</button>`).join("")}</div></div>
     <div class="stack">
-      ${PRACTICE.map((p) => `<button class="plist-row" data-a="pr:${p.id}"><span class="ticon tone-${p.tone}">${p.icon}</span><span class="grow"><b>${p.title}</b><span class="tsub">${p.sub}</span></span>${icons.chevronRight}</button>`).join("")}
-    </div>`;
+      ${PRACTICE.filter((p) => p.main).map((p) => `<button class="plist-row" data-a="pr:${p.id}"><span class="ticon">${p.icon}</span><span class="grow"><b>${p.title}</b><span class="tsub">${p.sub}</span></span>${icons.chevronRight}</button>`).join("")}
+    </div>
+    <details class="more-modes"><summary>Diğer pratik türleri</summary>
+      <div class="stack">
+        ${PRACTICE.filter((p) => !p.main).map((p) => `<button class="plist-row" data-a="pr:${p.id}"><span class="ticon">${p.icon}</span><span class="grow"><b>${p.title}</b><span class="tsub">${p.sub}</span></span>${icons.chevronRight}</button>`).join("")}
+      </div>
+    </details>
+    <p class="muted" style="font-size:13px;margin-top:14px">Pratik ekstra çalışmadır; tekrar zamanlamanı değiştirmez. Kalıcı öğrenme için günlük planı tamamla.</p>`;
 }
 
 /* ------------------------------------------------------------------- İLERLEME */
 
-const STAGES = ["Yeni", "1 gün", "3 gün", "1 hafta", "1 ay", "4 ay"];
-function stageOf(c) {
-  if (c.s === 1) return 0;
-  if (c.s !== 2) return -1;
-  return c.iv <= 1 ? 1 : c.iv <= 3 ? 2 : c.iv <= 10 ? 3 : c.iv <= 40 ? 4 : 5;
-}
-
-function dots(n) {
-  const on = (i) => (i < n ? "var(--ok)" : "var(--border)");
-  return `<svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><circle cx="12" cy="11" r="4.5" fill="${on(0)}"/><circle cx="28" cy="11" r="4.5" fill="${on(1)}"/><circle cx="20" cy="20" r="2.5" fill="${on(2)}"/><circle cx="12" cy="29" r="4.5" fill="${on(3)}"/><circle cx="28" cy="29" r="4.5" fill="${on(4)}"/></svg>`;
+function howItWorksModal() {
+  modal(`
+    <div class="row between"><h2>Nasıl öğretiyoruz?</h2><button class="icon-btn" data-a="close-modal" aria-label="Kapat">${icons.close}</button></div>
+    <div class="stack how">
+      <div><b>1. Hatırlamaya çalışırsın</b><p class="muted">Cevabı görmeden önce düşünürsün. Hatırlamaya çalışmak, tekrar tekrar okumaktan çok daha güçlü bir öğrenme yoludur.</p></div>
+      <div><b>2. Unutmaya yaklaşırken tekrar edersin</b><p class="muted">Her kelime için ne kadar dayanacağını tahmin ederiz. Tam unutacakken sorulan kelime, hafızada daha derin iz bırakır. İlk tekrar ertesi gün gelir; uykudan sonra pekişir.</p></div>
+      <div><b>3. Aralıklar uzar</b><p class="muted">Doğru bildikçe bir sonraki tekrar günlerden haftalara, aylara kayar. Unutursan kelime yeniden sık gelir.</p></div>
+      <div><b>4. Zorlandıkça farklı yoldan döneriz</b><p class="muted">Önce seçenekli sorular, sonra yazarak hatırlama gelir. Dinleme, görsel ve örnek cümle aynı kelimeyi farklı kapılardan hatırlatır.</p></div>
+      <div><b>5. Seni boğmayız</b><p class="muted">Tekrarlar birikirse yeni kelime azalır. Günlük hedef küçüktür; her gün azıcık, ara sıra çok olandan iyidir.</p></div>
+      <p class="muted" style="font-size:13px">Tahminler genel araştırma bulgularına dayanır; kişisel verinle yeniden ayarlanmaz. "Hafıza gücü" bir ölçüm değil, bir tahmindir.</p>
+    </div>`);
 }
 
 function progressView() {
@@ -252,10 +296,16 @@ function progressView() {
   const levels = st.settings.levels;
   const inScope = ctx.words.filter((w) => levels.includes(w.level) || w.level === "k");
   const learnedInScope = inScope.filter((w) => cardState(w.word) >= 2).length;
-  const unlocked = Object.keys(st.prog).filter((w) => ctx.index.byWord.has(w)).length;
-  const pct = inScope.length ? Math.floor((100 * learnedInScope) / inScope.length) : 0;
-  const stageCounts = [0, 0, 0, 0, 0, 0];
-  for (const w of Object.keys(st.prog)) { if (!ctx.index.byWord.has(w)) continue; const s = stageOf(st.prog[w]); if (s >= 0) stageCounts[s]++; }
+  const stageCounts = [0, 0, 0, 0];
+  let dueSoon = 0;
+  for (const w of Object.keys(st.prog)) {
+    if (!ctx.index.byWord.has(w)) continue;
+    const card = st.prog[w];
+    const i = stageIndex(card);
+    if (i >= 0) stageCounts[i]++;
+    if (card.s === 2 && card.due <= today) dueSoon++;
+  }
+  const strength = memoryStrength(st.prog, today);
   const days = Array.from({ length: 14 }, (_, i) => today - 13 + i);
   const maxQ = Math.max(1, ...days.map((d) => (st.stats.daily[d] ? st.stats.daily[d].q : 0)));
   const bars = days.map((d) => {
@@ -273,29 +323,28 @@ function progressView() {
     const learned = list.filter((w) => cardState(w.word) >= 2).length;
     return `<div class="lvl-row"><span><span class="chip lv lv-${lv}">${lv.toUpperCase()}</span></span><div class="bar"><i style="width:${Math.round((100 * learned) / list.length)}%"></i></div><small>${learned}/${list.length}</small></div>`;
   }).join("");
-  const row = (icon, tone, label, n, status) => `<button class="stat-row-item" data-a="prog-open" data-v="${status}"><span class="ticon sm tone-${tone}">${icon}</span><span class="grow">${label}</span><b class="${n ? "" : "zero"}">${n}</b></button>`;
+  const row = (label, n, status) => `<button class="stat-row-item" data-a="prog-open" data-v="${status}"><span class="grow">${label}</span><b class="${n ? "" : "zero"}">${n}</b>${icons.chevronRight}</button>`;
   return `
-    <div class="page-head"><h1>İlerleme</h1></div>
-    <section class="card hero-card">
-      <div class="row between"><div><div class="hero-title">${st.settings.accent === "en-GB" ? "İngilizce (UK)" : "İngilizce (US)"}</div>
-        <div class="hero-pct">${pct}%<span> tamamlandı</span></div></div><div class="hero-trophy" aria-hidden="true">🏆</div></div>
-      <div class="bar" style="margin:10px 0 8px" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${Math.max(pct, learnedInScope ? 2 : 0)}%"></i></div>
-      <p class="muted" style="font-size:14px">Seçili seviyelerdeki <b>${inScope.length}</b> kelimeden <b style="color:var(--ok)">${learnedInScope}</b> tanesini öğrendin; toplam <b>${unlocked}</b> kelimenin kilidini açtın.</p>
+    <div class="page-head"><h1>Bahçem</h1><button class="btn ghost sm" data-a="how">Nasıl çalışıyor?</button></div>
+    <section class="card garden">
+      <div class="garden-top">
+        <div><div class="big-num">${strength == null ? "–" : "%" + Math.round(strength * 100)}</div><div class="muted">hafıza gücü</div></div>
+        <p class="muted garden-note">${strength == null ? "Kelime öğrenmeye başlayınca bahçen burada büyür." : dueSoon ? `<b>${dueSoon}</b> kelime unutmaya yaklaştı. Şimdi tekrar etmek en verimli an.` : "Şu an hiçbir kelime unutmaya yaklaşmadı."}</p>
+      </div>
+      <div class="stages">${STAGES.map((sg, i) => `<div class="stage"><span class="stage-plant">${plants[i](46)}</span><b class="${stageCounts[i] ? "" : "zero"}">${stageCounts[i]}</b><span class="stage-l">${sg.label}</span><span class="stage-h">${sg.hint}</span></div>`).join("")}</div>
+      ${dueSoon ? `<button class="btn primary block" data-a="task-review">Şimdi tekrar et (${dueSoon})</button>` : ""}
     </section>
-    <section class="card list-card" style="margin-top:14px">
-      ${row(icons.bolt, "blue", "Öğrendiğim kelimeler", c.learning + c.review, "learning")}
-      ${row(icons.flag, "red", "Zor kelimeler", c.leech, "leech")}
-      ${row(icons.check2, "green", "Bildiğim kelimeler", c.known, "known")}
-      ${row(icons.star, "amber", "Favori kelimeler", c.fav, "fav")}
+    <section class="card list-card" style="margin-top:12px">
+      ${row("Öğrendiğim kelimeler", c.learning + c.review, "learning")}
+      ${row("Zor kelimeler", c.leech, "leech")}
+      ${row("Bildiğim kelimeler", c.known, "known")}
+      ${row("Favori kelimeler", c.fav, "fav")}
     </section>
-    <button class="search-fake" data-a="prog-open" data-v="all" data-focus="1"><span>Ara…</span>${icons.search}</button>
-    <h2 class="sec">Aralıklı tekrar</h2>
-    <section class="card"><div class="stages">${STAGES.map((l, i) => `<div class="stage"><span class="stage-l">${l}</span>${dots(i === 0 ? 0 : i)}<b class="${stageCounts[i] ? "" : "zero"}">${stageCounts[i]}</b></div>`).join("")}</div>
-      <p class="muted" style="font-size:13px;margin-top:10px">Bir kelimeyi doğru bildikçe sağa ilerler; unutursan başa döner.</p></section>
-    <div class="stat-row" style="margin-top:14px">
+    <button class="search-fake" data-a="prog-open" data-v="all" data-focus="1"><span>Kelime ara…</span>${icons.search}</button>
+    <div class="stat-row" style="margin-top:12px">
       <div class="stat"><b>${store.currentStreak(today)}</b><span>günlük seri</span></div>
       <div class="stat"><b>${st.stats.best}</b><span>en uzun seri</span></div>
-      <div class="stat"><b>${st.stats.xp}</b><span>toplam XP</span></div>
+      <div class="stat"><b>${learnedInScope}<small>/${inScope.length}</small></b><span>seçili seviyede</span></div>
     </div>
     <h2 class="sec">Son 14 gün · %${q ? Math.round((100 * ok) / q) : 0} doğruluk</h2>
     <section class="card"><div class="bars" role="img" aria-label="Son 14 günde çözülen soru sayıları">${bars}</div></section>
@@ -361,8 +410,15 @@ function openWord(word) {
   if (!w) return;
   const c = store.state.prog[word];
   const s = c ? c.s : 0;
-  const stateLabel = ["Yeni", "Öğreniliyor", "Tekrar aşamasında", "Biliyorum"][s];
-  const nextDue = c && c.s === 2 ? ` · sonraki tekrar ${Math.max(0, c.due - dayNumber())} gün sonra` : "";
+  const today = dayNumber();
+  const si = stageIndex(c);
+  let memLine = ["Henüz öğrenmedin", "Öğreniliyor", "", "Biliyorum"][s];
+  if (c && c.s === 2) {
+    const r = Math.round(retrievability(c, today) * 100);
+    const days = c.due - today;
+    memLine = `${STAGES[si].label} · şu an hatırlama olasılığın %${r} · ${days <= 0 ? "tekrar zamanı geldi" : `sonraki tekrar ${days} gün sonra`}`;
+  }
+  const note = store.state.notes[word] || "";
   modal(`
     <div class="row between"><span class="chip lv lv-${w.level}">${w.level === "k" ? "Kendi" : w.level.toUpperCase()}</span>
       <button class="icon-btn" data-a="close-modal" aria-label="Kapat">${icons.close}</button></div>
@@ -373,7 +429,10 @@ function openWord(word) {
       <button class="icon-btn" style="margin:0 auto" data-a="say" data-t="${h(w.word)}" aria-label="Dinle">${icons.speaker}</button>
       <ul style="list-style:none;padding:0;margin:0;font-size:22px;font-weight:700">${w.tr.map((m) => `<li>${h(m)}</li>`).join("")}</ul>
       ${w.example ? `<div class="card" lang="en"><i>${h(w.example)}</i> <button class="icon-btn" data-a="say" data-t="${h(w.example)}" aria-label="Cümleyi dinle">${icons.speaker}</button>${w.exampleTr ? `<div class="muted" style="margin-top:4px" lang="tr">${h(w.exampleTr)}</div>` : ""}</div>` : ""}
-      <p class="muted">${stateLabel}${nextDue}${c && c.lapses ? ` · ${c.lapses} kez unutuldu` : ""}</p>
+      <p class="memline muted">${si >= 0 ? `<span class="memplant">${plants[si](30)}</span>` : ""}<span>${memLine}${c && c.lapses ? ` · ${c.lapses} kez unutuldu` : ""}</span></p>
+      ${isLeech(c) ? `<p class="plan-note" style="text-align:left">Bu kelime seni zorluyor. Aşağıya kendine ait bir hatırlatıcı yaz: bir resim, bir benzetme ya da kendi cümlen. Kişisel bağlar, kelimeyi daha iyi tutar.</p>` : ""}
+      <div class="field" style="text-align:left"><label for="w-note">Kendi hatırlatıcın</label>
+        <textarea id="w-note" data-word="${h(word)}" rows="2" maxlength="200" placeholder="Bu kelimeyi sana ne hatırlatıyor? (örn: kendi cümlen, benzer bir Türkçe ses)">${h(note)}</textarea></div>
     </div>
     <div class="stack">
       ${s === 3 ? `<button class="btn block" data-a="w-reset" data-w="${h(word)}">Tekrar öğrenmek istiyorum</button>`
@@ -468,10 +527,10 @@ function settingsView() {
 /* --------------------------------------------------------------- YÖNLENDİRME */
 
 const NAV = [
-  ["learn", "Öğren", icons.book],
-  ["practice", "Pratik yap", icons.bolt],
-  ["stories", "Hikâyeler", icons.sparkles],
-  ["progress", "İlerleme", icons.chart],
+  ["learn", "Bugün", icons.home],
+  ["practice", "Pratik", icons.bolt],
+  ["stories", "Hikâyeler", icons.bookOpen],
+  ["progress", "Bahçem", icons.sprout],
 ];
 const NAV_OF = { words: "progress", settings: "learn" };
 
@@ -501,6 +560,7 @@ function go(r) {
 Object.assign(ctx.actions, {
   nav: (el) => go(el.dataset.v),
   "go-settings": () => go("settings"),
+  how: () => howItWorksModal(),
   back: () => go(prevRoute === "settings" ? "learn" : prevRoute),
   "back-progress": () => go("progress"),
   say: (el) => say(el.dataset.t),
@@ -581,6 +641,12 @@ document.addEventListener("click", (e) => {
 });
 
 document.addEventListener("change", (e) => {
+  if (e.target && e.target.id === "w-note") {
+    const word = e.target.dataset.word, v = e.target.value.trim();
+    if (v) store.state.notes[word] = v; else delete store.state.notes[word];
+    store.save();
+    return;
+  }
   const el = e.target.closest("[data-a-change]");
   if (!el) return;
   const s = store.state.settings;
@@ -615,9 +681,9 @@ document.addEventListener("input", (e) => {
 function showOnboarding() {
   modal(`
     <div class="stack" style="text-align:center">
-      <div style="font-size:52px" aria-hidden="true">🌱</div>
+      <div style="display:flex;justify-content:center">${brandMark(56)}</div>
       <h1>Kelime Bahçesi'ne hoş geldin</h1>
-      <p class="muted">Her gün birkaç kelime, doğru zamanda tekrar. Oxford A1–C1 listesinden İngilizce kelimeleri, her biri için birkaç yaygın Türkçe karşılığıyla öğren.</p>
+      <p class="muted">Her gün birkaç kelime; unutmaya yaklaştığında tam zamanında tekrar. A1'den C1'e İngilizce kelimeleri, her biri için birkaç yaygın Türkçe karşılığıyla öğrenirsin.</p>
       <div class="field" style="text-align:left"><label>Günde kaç yeni kelime?</label>
         <div class="seg">${[5, 10, 15, 20].map((n) => `<button data-a="onb-goal" data-v="${n}" aria-pressed="${store.state.settings.goal === n}">${n}</button>`).join("")}</div></div>
       <button class="btn primary block" data-a="onb-test">Seviyemi ölç (≈3 dk)</button>

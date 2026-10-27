@@ -1,11 +1,25 @@
 // Çalışma oturumu denetleyicisi: sırayı oluşturur, cevapları puanlar, kartları günceller.
 import { dayNumber } from "./util.js";
-import { review, graduate, newProgress, dueWords, pickNewWords, hashKey } from "./srs.js";
+import { review, graduate, newProgress, dueWords, pickNewWords, hashKey, gradeFor, newWordBudget } from "./srs.js";
 import { makeExercise, pickType } from "./exercises.js";
 import { hasEmoji } from "./visuals.js";
 
 const GROUP = 3;          // aynı anda tanıtılan yeni kelime sayısı
 const RETRY_GAP = 3;      // yanlış cevaptan kaç soru sonra tekrar sorulur
+
+/** Bugünkü yeni kelime payı: tekrarlar birikmişse ya da son günlerde başarı düşükse azaltılır. */
+export function planNew(store, today = dayNumber()) {
+  const st = store.state;
+  const days = Array.from({ length: 5 }, (_, i) => st.stats.daily[today - i]).filter((d) => d && d.r >= 3);
+  const r = days.reduce((a, d) => a + d.r, 0);
+  const rok = days.reduce((a, d) => a + (d.rok || 0), 0);
+  return newWordBudget({
+    goal: st.settings.goal,
+    doneToday: store.dayStats(today).n,
+    dueCount: dueWords(st.prog, today).length,
+    recentAccuracy: r >= 10 ? rok / r : null,
+  });
+}
 
 export function createSession({ store, index, mode = "daily", words = null, newCount = null, forceType = null, rng = Math.random, caps = {}, today = dayNumber() }) {
   const st = store.state;
@@ -44,7 +58,7 @@ export function createSession({ store, index, mode = "daily", words = null, newC
       .forEach((w) => push({ word: w, kind: "review" }));
   }
   if (mode === "daily" || mode === "new") {
-    const budget = newCount != null ? newCount : Math.max(0, st.settings.goal - store.dayStats(today).n);
+    const budget = newCount != null ? newCount : planNew(store, today).count;
     // Önceki oturumda başlanıp bitirilmemiş kelimeler önce gelir.
     const carry = Object.keys(prog).filter((w) => prog[w].s === 1 && index.byWord.has(w)).map(wordObj);
     const cands = [...carry, ...newCandidates(Math.max(0, budget - carry.length))];
@@ -123,7 +137,7 @@ export function createSession({ store, index, mode = "daily", words = null, newC
     if (t) markKnown(t.word);
   }
 
-  function submit({ correct, close = false, hinted = false }) {
+  function submit({ correct, close = false, hinted = false, ms = null }) {
     const t = queue.shift();
     if (!t) return null;
     const word = t.word;
@@ -144,7 +158,7 @@ export function createSession({ store, index, mode = "daily", words = null, newC
       } else {
         xp = mm.mistakes ? 5 : 10;
         if (t.stage === 2) {
-          prog[word] = graduate(card || newProgress(today), mm.mistakes + (close ? 1 : 0), today);
+          prog[word] = graduate(card || newProgress(today), mm.mistakes + (close ? 1 : 0), today, st.settings.retention);
           log.learned.push(word);
           store.recordAnswer({ ok: true, isNew: "graduated", xp }, today);
         } else {
@@ -156,12 +170,12 @@ export function createSession({ store, index, mode = "daily", words = null, newC
       if (!correct) {
         grade = 0;
         log.missed.add(word);
-        prog[word] = review(card, 0, today);
+        prog[word] = review(card, 0, today, st.settings.retention);
         requeue({ word, kind: "relearn" }, 4);
       } else {
-        grade = hinted || close ? 1 : typed && (card.reps || 0) >= 2 ? 3 : 2;
-        prog[word] = review(card, grade, today);
-        xp = hinted || close ? 6 : 10;
+        grade = gradeFor({ correct, hinted, close, typed: !!typed, ms, reps: card.reps || 0 });
+        prog[word] = review(card, grade, today, st.settings.retention);
+        xp = grade === 1 ? 6 : 10;
       }
       store.recordAnswer({ ok: correct, isNew: "review", xp }, today);
     } else if (t.kind === "relearn") {

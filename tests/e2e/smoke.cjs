@@ -19,8 +19,8 @@ const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exitCode
   assert(await page.locator("text=Kelime Bahçesi'ne hoş geldin").count() === 1, "onboarding görünür");
   await page.screenshot({ path: `${OUT}/01-onboarding.png` });
   await page.click('[data-a="onb-a1"]');
-  await page.waitForSelector(".task");
-  assert((await page.textContent(".page-title")).includes("Bugünün görevleri"), "bugünün görevleri başlığı");
+  await page.waitForSelector(".plan");
+  assert((await page.textContent(".plan-title")).includes("Bugünkü plan"), "bugünün görevleri başlığı");
   assert((await page.textContent("#app")).includes("0/10"), "günlük hedef 0/10");
   await page.screenshot({ path: `${OUT}/02-home.png` });
 
@@ -88,14 +88,14 @@ const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exitCode
   await page.screenshot({ path: `${OUT}/04-summary.png` });
   assert((await page.textContent(".summary")).includes("yeni kelime"), "özet ekranı");
   await page.click('[data-a="s:done"]');
-  await page.waitForSelector(".task");
-  assert((await page.locator(".task.done").count()) >= 1, "yeni kelime görevi tamamlandı işaretlendi");
-  assert((await page.textContent(".page-title")).length > 0, "ana sayfa yeniden çizildi");
+  await page.waitForSelector(".plan");
+  assert((await page.locator(".plan-row.done").count()) >= 1, "yeni kelime görevi tamamlandı işaretlendi");
+  assert((await page.textContent(".plan-title")).length > 0, "ana sayfa yeniden çizildi");
 
   // İlerleme sekmesi ve kelime listesi
   await page.click('[data-a="nav"][data-v="progress"]');
-  await page.waitForSelector(".hero-card");
-  assert((await page.textContent(".stages")).includes("1 hafta"), "aralıklı tekrar aşamaları görünür");
+  await page.waitForSelector(".garden");
+  assert((await page.textContent(".stages")).includes("Fidan"), "aralıklı tekrar aşamaları görünür");
   await page.screenshot({ path: `${OUT}/07-progress.png`, fullPage: true });
   await page.click('[data-a="prog-open"][data-v="all"]:not(.search-fake)');
   await page.waitForSelector("#q");
@@ -132,13 +132,13 @@ const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exitCode
   await page.click('[data-a="set"][data-k="theme"][data-v="dark"]');
   await page.screenshot({ path: `${OUT}/08-settings-dark.png` });
   await page.click('[data-a="back"]');
-  await page.waitForSelector(".task");
+  await page.waitForSelector(".plan");
   await page.screenshot({ path: `${OUT}/09-home-dark.png` });
 
   // Kalıcılık
   await page.reload();
-  await page.waitForSelector(".task");
-  assert((await page.textContent("#app")).includes("/5"), "ayarlar yenilemeden sonra korundu");
+  await page.waitForSelector(".plan");
+  assert(/\/5|5 kelime tamam/.test(await page.textContent("#app")), "ayarlar yenilemeden sonra korundu");
 
   assert(errors.length === 0, "konsolda hata yok " + JSON.stringify(errors));
   await browser.close();
