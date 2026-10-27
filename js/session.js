@@ -2,6 +2,7 @@
 import { dayNumber } from "./util.js";
 import { review, graduate, newProgress, dueWords, pickNewWords, hashKey } from "./srs.js";
 import { makeExercise, pickType } from "./exercises.js";
+import { hasEmoji } from "./visuals.js";
 
 const GROUP = 3;          // aynı anda tanıtılan yeni kelime sayısı
 const RETRY_GAP = 3;      // yanlış cevaptan kaç soru sonra tekrar sorulur
@@ -76,7 +77,7 @@ export function createSession({ store, index, mode = "daily", words = null, newC
     if (t.kind === "new") {
       type = t.stage === 1 ? "mcq_en_tr" : (caps.audio && lastType !== "listen_mcq" && rng() < 0.5 ? "listen_mcq" : "mcq_tr_en");
     } else if (t.kind === "practice" && forceType) {
-      type = forceType;
+      type = forceType === "listen_mcq" && hasEmoji(t.word) && rng() < 0.6 ? "listen_emoji" : forceType;
     } else if (t.kind === "relearn") {
       type = lastType === "mcq_en_tr" ? "mcq_tr_en" : "mcq_en_tr";
     } else {

@@ -8,6 +8,8 @@ import { icons } from "./icons.js";
 import { englishVoices, caps as speechCaps } from "./speech.js";
 import { startSession, startPlacement, say } from "./sessionui.js";
 import { startSlideshow } from "./slideshow.js";
+import { openMeditation } from "./meditation.js";
+import { startRecorder, recordingSupported } from "./recorder.js";
 import { storiesView, storyOfTheDay, storyReadToday, openReader } from "./storiesui.js";
 import { DEFAULT_MODEL } from "./stories.js";
 import { tileHtml, hasEmoji } from "./visuals.js";
@@ -170,9 +172,11 @@ function moreTasksSheet() {
 
 const PRACTICE = [
   { id: "mix", icon: icons.shuffle, tone: "orange", title: "Karma pratik", sub: "Her türden 10 soru", min: 4 },
+  { id: "meditate", icon: icons.sparkles, tone: "purple", title: "Meditasyon", sub: "Sakin bir ortamda, sesli kelime turu", min: 3 },
   { id: "slides", icon: icons.slides, tone: "green", title: "Slayt gösterisi", sub: "Kelimeleri sesli, otomatik izle", min: 2 },
-  { id: "listen", icon: icons.headphones, tone: "blue", title: "Dinleme", sub: "Duyduğun kelimeyi seç", type: "listen_mcq", min: 4, needAudio: true },
+  { id: "listen", icon: icons.headphones, tone: "blue", title: "Dinleme", sub: "Duyduğun kelimeyi ya da görseli seç", type: "listen_mcq", min: 4, needAudio: true },
   { id: "speak", icon: icons.mic, tone: "pink", title: "Telaffuz", sub: "Yüksek sesle söyle", type: "speak", min: 3, needSpeech: true },
+  { id: "record", icon: icons.mic, tone: "red", title: "Ses kayıt", sub: "Kendi sesini kaydet ve karşılaştır", min: 2, needRecorder: true },
   { id: "write", icon: icons.pencil, tone: "amber", title: "Yazma", sub: "Türkçesinden İngilizcesini yaz", type: "type_en", min: 3 },
   { id: "dictation", icon: icons.speaker, tone: "indigo", title: "Dikte", sub: "Duyduğunu yaz", type: "dictation", min: 3, needAudio: true },
   { id: "visual", icon: icons.eye, tone: "teal", title: "Görsel testi", sub: "Görsele bakıp kelimeyi seç", type: "emoji_mcq", min: 4, needEmoji: true },
@@ -201,13 +205,16 @@ function startPractice(id) {
   if (spec.needEmoji) pool = pool.filter(hasEmoji);
   if (spec.needCloze) pool = pool.filter((w) => clozeParts(ctx.index.byWord.get(w)));
   if (spec.needAudio && !speechCaps.audio) return ctx.toast("Bu cihazda sesli okuma yok.");
+  if (spec.needRecorder && !recordingSupported()) return ctx.toast("Bu tarayıcı ses kaydını desteklemiyor.");
   if (spec.needSpeech && !speechCaps.speaking) return ctx.toast("Bu tarayıcıda konuşma tanıma desteklenmiyor (Chrome/Edge deneyin).");
   if (pool.length < spec.min) {
     const hint = spec.needEmoji ? "görseli olan " : "";
     return ctx.toast(`En az ${spec.min} ${hint}kelime gerekli (şu an ${pool.length}). Önce birkaç kelime öğren ya da kaynağı değiştir.`);
   }
   if (id === "slides") return startSlideshow(pool, spec.title);
-  const sample = shuffle(pool).slice(0, 10);
+  if (id === "meditate") return openMeditation(pool);
+  if (id === "record") return startRecorder(pool);
+  const sample = shuffle(pool).slice(0, store.state.settings.practiceCount);
   startSession({ mode: "practice", words: sample, forceType: spec.type || null, title: spec.title });
 }
 
@@ -218,6 +225,7 @@ function practiceView() {
     <div class="page-head"><h1>Pratik yap</h1></div>
     <div class="field"><label>Hangi kelimelerle? <span class="muted">(${n} kelime)</span></label>
       <div class="seg">${src("learned", "Öğrendiklerim")}${src("hard", "Zor kelimelerim")}${src("fav", "Favorilerim")}</div></div>
+    <div class="field"><label>Tur uzunluğu</label><div class="seg">${[10, 15, 20].map((n) => `<button data-a="set" data-k="practiceCount" data-v="${n}" aria-pressed="${store.state.settings.practiceCount === n}">${n} soru</button>`).join("")}</div></div>
     <div class="stack">
       ${PRACTICE.map((p) => `<button class="plist-row" data-a="pr:${p.id}"><span class="ticon tone-${p.tone}">${p.icon}</span><span class="grow"><b>${p.title}</b><span class="tsub">${p.sub}</span></span>${icons.chevronRight}</button>`).join("")}
     </div>`;
@@ -340,11 +348,12 @@ function wordsView() {
           ${tileHtml(w, "sm")}
           <span class="grow"><span class="w" lang="en">${h(w.word)}</span> <span class="chip lv lv-${w.level}" style="font-size:11px;padding:1px 7px">${w.level === "k" ? "Kendi" : w.level.toUpperCase()}</span>
           <div class="m">${h(w.tr.join(" · "))}</div></span>
-          <span class="dot s${cardState(w.word)}" title="durum"></span>
+          ${wordsState.status === "known" ? `<span class="x-btn" role="button" tabindex="0" data-a="w-unknown" data-w="${h(w.word)}" aria-label="Bildiklerimden çıkar">${icons.x}</span>` : `<span class="dot s${cardState(w.word)}" title="durum"></span>`}
           ${store.state.prog[w.word] && store.state.prog[w.word].fav ? small(icons.star, 18).replace("<svg", '<svg fill="currentColor" style="color:var(--accent)"') : ""}
         </button>`).join("") || `<div class="empty">Eşleşen kelime yok.</div>`}
     </div>
-    ${list.length > shown.length ? `<button class="btn block" style="margin-top:12px" data-a="w-more">Daha fazla göster (${list.length - shown.length})</button>` : ""}`;
+    ${list.length > shown.length ? `<button class="btn block" style="margin-top:12px" data-a="w-more">Daha fazla göster (${list.length - shown.length})</button>` : ""}
+    ${wordsState.status !== "all" && list.length >= 4 ? `<button class="fab-bottom btn primary lg3d" data-a="list-practice">Pratik yap (${Math.min(list.length, store.state.settings.practiceCount)})</button>` : ""}`;
 }
 
 function openWord(word) {
@@ -424,6 +433,7 @@ function settingsView() {
       <section class="card stack">
         <div class="field"><label>Aksan</label>${seg("accent", [["en-US", "Amerikan"], ["en-GB", "İngiliz"]])}</div>
         <div class="field"><label>Okuma hızı</label>${seg("rate", [[0.7, "Yavaş"], [0.9, "Normal"], [1.1, "Hızlı"]])}</div>
+        <div class="field"><label>Yazma alıştırmaları</label>${seg("writeMode", [["tiles", "Harf kutuları"], ["keyboard", "Klavye"]])}</div>
         <div class="field"><label>Slayt gösterisi hızı</label>${seg("slideSeconds", [[4, "Hızlı"], [6, "Normal"], [9, "Yavaş"]])}</div>
         ${voices.length ? `<div class="field"><label for="voice">Ses</label><select id="voice" data-a-change="voice"><option value="">Otomatik</option>${voices.map((v) => `<option value="${h(v.voiceURI)}" ${s.voice === v.voiceURI ? "selected" : ""}>${h(v.name)} (${h(v.lang)})</option>`).join("")}</select></div>` : `<p class="muted">Bu cihazda sesli okuma bulunamadı; dinleme/telaffuz özellikleri kapalı.</p>`}
         <button class="btn sm" data-a="say" data-t="Hello! Let's learn some new words today.">${icons.speaker} Sesi dene</button>
@@ -517,6 +527,11 @@ Object.assign(ctx.actions, {
   "w-status": (el) => { wordsState.status = el.dataset.v; wordsState.limit = 60; render(); },
   "w-more": () => { wordsState.limit += 80; render(); },
   "w-open": (el) => openWord(el.dataset.w),
+  "w-unknown": (el) => { delete store.state.prog[el.dataset.w]; store.save(); ctx.toast("Bildiklerinden çıkarıldı."); render(); },
+  "list-practice": () => {
+    const sample = shuffle(filteredWords().map((w) => w.word)).slice(0, store.state.settings.practiceCount);
+    startSession({ mode: "practice", words: sample, title: "Pratik" });
+  },
   "add-word": () => addWordModal(),
   "w-known": (el) => { const w = el.dataset.w; store.state.prog[w] = { ...(store.state.prog[w] || newProgress(dayNumber())), s: 3, due: 0 }; store.save(); closeModal(); ctx.toast("Biliyorum olarak işaretlendi."); render(); },
   "w-start": (el) => { const w = el.dataset.w; store.state.prog[w] = newProgress(dayNumber()); store.save(); closeModal(); ctx.toast("Sıradaki çalışmada ilk sırada gelecek."); render(); },
@@ -531,7 +546,7 @@ Object.assign(ctx.actions, {
   set: (el) => {
     const k = el.dataset.k;
     let v = el.dataset.v;
-    if (["goal", "rate", "maxReviews", "slideSeconds"].includes(k)) v = Number(v);
+    if (["goal", "rate", "maxReviews", "slideSeconds", "practiceCount"].includes(k)) v = Number(v);
     store.state.settings[k] = v;
     store.save();
     render();

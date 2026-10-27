@@ -2,7 +2,8 @@
 import { ctx } from "./ctx.js";
 import { icons } from "./icons.js";
 import { say } from "./sessionui.js";
-import { lookupToken, tokenize } from "./lemma.js";
+import { stopSpeaking } from "./speech.js";
+import { lookupToken, tokenize, splitSentences } from "./lemma.js";
 import { newProgress } from "./srs.js";
 import { posLabel } from "./exercises.js";
 import { tileHtml } from "./visuals.js";
@@ -75,60 +76,159 @@ export function storiesView() {
 
 /* ------------------------------------------------------------------ okuyucu */
 
-function readerHtml(s) {
-  const prog = ctx.store.state.prog;
-  const paras = s.en.map((p, i) => {
-    const toks = tokenize(p).map((t) => {
-      if (!t.word) return h(t.t);
-      const w = lookupToken(t.t, ctx.index.byWord);
-      if (!w) return h(t.t);
-      const k = prog[w.word] && prog[w.word].s >= 2 ? "known" : "unk";
-      return `<button class="tok ${k}" data-a="tok" data-w="${h(w.word)}" data-t="${h(t.t)}">${h(t.t)}</button>`;
-    }).join("");
-    return `<div class="para"><p lang="en">${toks}</p><div class="para-tools">
-        <button class="btn ghost sm" data-a="para-say" data-i="${i}">${icons.speaker} Dinle</button></div>
-        ${storyState.showTr ? `<p class="tr muted" lang="tr">${h(s.tr[i])}</p>` : ""}</div>`;
-  }).join("");
-  return paras;
+const FONTS = [1, 1.18, 1.36];
+const reader = { story: null, sentences: [], listening: false, idx: -1, font: 0, trAll: false, trOpen: new Set(), timer: null, token: 0 };
+
+function sentencesOf(s) {
+  const out = [];
+  s.en.forEach((p, pi) => {
+    const en = splitSentences(p), tr = splitSentences(s.tr[pi]);
+    const aligned = en.length === tr.length;
+    en.forEach((e, i) => out.push({ en: e, tr: aligned ? tr[i] : i === 0 ? s.tr[pi] : "", para: pi, first: i === 0 }));
+  });
+  return out;
 }
 
-export function openReader(id) {
-  const s = stories().find((x) => x.id === id);
-  if (!s) return;
-  storyState.current = s;
-  const st = ctx.store.state;
-  const fav = !!st.stories.fav[s.id];
-  document.getElementById("overlay").innerHTML = `
-    <section class="sess reader" role="dialog" aria-label="${h(s.title)}">
-      <header class="sess-head">
-        <button class="icon-btn" data-a="reader-close" aria-label="Geri">${icons.chevronLeft}</button>
-        <h2 class="grow reader-title" lang="en">${s.emoji} ${h(s.title)}</h2>
-        <button class="icon-btn" data-a="reader-fav" aria-label="Favori" aria-pressed="${fav}" style="${fav ? "color:var(--accent)" : ""}">${icons.star.replace("<svg", fav ? '<svg fill="currentColor"' : "<svg")}</button>
+/** Hikâyedeki, öğrenme listende olmayan (hedef) kelimeler: tekil, 4+ harfli. */
+export function targetWords(s) {
+  const prog = ctx.store.state.prog;
+  const seen = new Map();
+  for (const t of tokenize(s.en.join(" ")).filter((x) => x.word)) {
+    const w = lookupToken(t.t, ctx.index.byWord);
+    if (w && w.word.length >= 4 && !prog[w.word] && !seen.has(w.word)) seen.set(w.word, w);
+  }
+  return [...seen.values()];
+}
+
+function tokensHtml(text) {
+  const prog = ctx.store.state.prog;
+  return tokenize(text).map((t) => {
+    if (!t.word) return h(t.t);
+    const w = lookupToken(t.t, ctx.index.byWord);
+    if (!w) return h(t.t);
+    const c = prog[w.word];
+    const k = c && c.s >= 2 ? "known" : !c && w.word.length >= 4 ? "new" : "plain";
+    return `<button class="tok ${k}" data-a="tok" data-w="${h(w.word)}" data-t="${h(t.t)}">${h(t.t)}</button>`;
+  }).join("");
+}
+
+function sentenceRows() {
+  let html = "";
+  reader.sentences.forEach((x, i) => {
+    const open = reader.trAll || reader.trOpen.has(i);
+    html += `<div class="sent ${reader.idx === i ? "on" : ""} ${x.first && i ? "para-start" : ""}" id="sent-${i}">
+      <button class="sent-play" data-a="sent-play" data-i="${i}" aria-label="Bu cümleyi dinle">${reader.idx === i && reader.listening ? icons.pause : icons.play}</button>
+      <div class="grow"><p lang="en">${tokensHtml(x.en)}</p>${open && x.tr ? `<p class="tr" lang="tr">${h(x.tr)}</p>` : ""}</div>
+      <button class="sent-tr ${open ? "on" : ""}" data-a="sent-tr" data-i="${i}" aria-label="Cümleyi çevir" aria-pressed="${open}">${icons.languages}</button></div>`;
+  });
+  return html;
+}
+
+function renderReader() {
+  const s = reader.story;
+  const el = document.getElementById("overlay");
+  const done = !!ctx.store.state.stories.read[s.id];
+  el.innerHTML = `
+    <section class="sess reader" style="--fs:${FONTS[reader.font]}" role="dialog" aria-label="${h(s.title)}">
+      <header class="sess-head rd-head">
+        <button class="icon-btn flat" data-a="reader-detail" aria-label="Geri">${icons.chevronLeft}</button>
+        <span class="grow reader-title" lang="en">${s.emoji} ${h(s.title)}</span>
+        <button class="icon-btn flat" data-a="reader-listen" aria-label="${reader.listening ? "Duraklat" : "Baştan dinle"}">${reader.listening ? icons.pause : icons.headphones}</button>
+        <button class="icon-btn flat" data-a="reader-font" aria-label="Yazı boyutu"><b style="font-size:15px">Aa</b></button>
+        <button class="icon-btn flat ${reader.trAll ? "on" : ""}" data-a="reader-tr" aria-label="Tüm çeviriler" aria-pressed="${reader.trAll}">${icons.languages}</button>
       </header>
-      <div class="sess-body" id="reader-body">
-        <div class="row" style="gap:8px;margin-bottom:10px"><span class="chip lv lv-${s.level}">${LV_NAME[s.level]}</span>
-          <button class="btn sm" data-a="reader-all">${icons.speaker} Hepsini oku</button>
-          <button class="btn sm" data-a="reader-tr" aria-pressed="${storyState.showTr}">${storyState.showTr ? "Türkçeyi gizle" : "Türkçesini göster"}</button></div>
-        <p class="muted" style="font-size:13px;margin-bottom:10px">Bir kelimeye dokununca anlamını görürsün. <span class="tok known demo">Yeşil</span> kelimeleri zaten öğrendin.</p>
-        <div id="reader-text">${readerHtml(s)}</div>
-      </div>
-      <footer class="sess-foot"><button class="btn primary block" data-a="reader-done">${st.stories.read[s.id] ? "Tekrar okudum ✓" : "Okudum ✓"}</button></footer>
+      <div class="sess-body" id="reader-body"><div id="reader-text">${sentenceRows()}</div></div>
+      <footer class="sess-foot"><button class="btn primary block" data-a="reader-done">${done ? "Tekrar okudum ✓" : "Okudum ✓"}</button></footer>
     </section>`;
   document.body.classList.add("in-session");
 }
 
+function refreshSentences() {
+  const box = document.getElementById("reader-text");
+  if (box) box.innerHTML = sentenceRows();
+}
+
+function stopListening() {
+  reader.listening = false;
+  reader.token++;
+  clearTimeout(reader.timer);
+  stopSpeaking();
+}
+
+async function listenFrom(i) {
+  stopListening();
+  reader.listening = true;
+  const my = ++reader.token;
+  for (let k = i; k < reader.sentences.length; k++) {
+    if (!reader.listening || reader.token !== my) return;
+    reader.idx = k;
+    refreshSentences();
+    const el = document.getElementById("sent-" + k);
+    el && el.scrollIntoView({ block: "center", behavior: "smooth" });
+    const t0 = Date.now();
+    await say(reader.sentences[k].en);
+    // Ses desteği yoksa makul bir bekleme uygula.
+    const min = Math.min(6000, 700 + reader.sentences[k].en.length * 55);
+    if (Date.now() - t0 < 400) await new Promise((r) => (reader.timer = setTimeout(r, min)));
+  }
+  if (reader.token === my) { reader.listening = false; reader.idx = -1; refreshSentences(); const h2 = document.querySelector('[data-a="reader-listen"]'); if (h2) h2.innerHTML = icons.headphones; }
+}
+
+export function openDetail(id) {
+  const s = stories().find((x) => x.id === id);
+  if (!s) return;
+  stopListening();
+  reader.story = s;
+  reader.sentences = sentencesOf(s);
+  reader.idx = -1; reader.trOpen = new Set();
+  const st = ctx.store.state;
+  const fav = !!st.stories.fav[s.id];
+  const tw = targetWords(s);
+  document.getElementById("overlay").innerHTML = `
+    <section class="sess detail" role="dialog" aria-label="${h(s.title)}">
+      <div class="detail-hero lv-hero-${s.level}">
+        <div class="detail-bar"><button class="icon-btn dark" data-a="reader-close" aria-label="Geri">${icons.chevronLeft}</button>
+          <button class="icon-btn dark" data-a="reader-fav" aria-label="Favori" aria-pressed="${fav}">${icons.star.replace("<svg", fav ? '<svg fill="currentColor"' : "<svg")}</button></div>
+        <div class="detail-emoji" aria-hidden="true">${s.emoji}</div>
+        <div class="detail-title"><div class="story-meta"><span class="chip lv lv-${s.level}">${LV_NAME[s.level]}</span><span class="chip">${reader.sentences.length} cümle</span>${st.stories.read[s.id] ? '<span class="chip ok">✓ Okundu</span>' : ""}</div>
+          <h1 lang="en">${h(s.title)}</h1></div>
+      </div>
+      <div class="sess-body detail-body">
+        <button class="plist-row" data-a="target-open"><span class="ticon tone-blue">${icons.sparkles}</span><span class="grow"><b>Hedef kelimeler</b><span class="tsub">Bu hikâyede ${tw.length} yeni kelime</span></span>${icons.chevronRight}</button>
+        <div class="row" style="gap:12px;margin-top:14px">
+          <button class="btn primary grow lg3d" data-a="reader-start">${icons.bookOpen} Oku</button>
+          <button class="btn grow lg3d-light" data-a="reader-start-listen">${icons.headphones} Dinle</button></div>
+      </div>
+    </section>`;
+  document.body.classList.add("in-session");
+}
+export const openReader = openDetail;
+
 function closeReader() {
+  stopListening();
   document.getElementById("overlay").innerHTML = "";
   document.body.classList.remove("in-session");
-  storyState.current = null;
+  reader.story = null;
   ctx.rerender();
+}
+
+function targetSheet() {
+  const tw = targetWords(reader.story);
+  const back = document.createElement("div");
+  back.className = "modal-back"; back.style.zIndex = 80; back.id = "tok-sheet";
+  back.innerHTML = `<div class="modal stack" role="dialog" aria-label="Hedef kelimeler">
+    <div class="row between"><h2>Hedef kelimeler</h2><button class="icon-btn" data-a="tok-close" aria-label="Kapat">${icons.close}</button></div>
+    ${tw.length ? `<div class="stack">${tw.map((w) => `<div class="row">${tileHtml(w, "sm")}<div class="grow"><b lang="en">${h(w.word)}</b><div class="muted" style="font-size:14px">${h(w.tr.join(" · "))}</div></div>
+        <button class="icon-btn" data-a="say" data-t="${h(w.word)}" aria-label="Dinle">${icons.speaker}</button></div>`).join("")}</div>
+      <button class="btn primary block" data-a="target-add-all">Hepsini öğrenme listeme ekle (${tw.length})</button>` : `<p class="muted">Bu hikâyedeki tüm kelimeleri zaten listende görüyorum. 🎉</p>`}</div>`;
+  back.addEventListener("click", (e) => { if (e.target === back) back.remove(); });
+  document.body.appendChild(back);
 }
 
 function tokenSheet(wordKey, tokenText) {
   const w = ctx.index.byWord.get(wordKey);
   if (!w) return;
   const c = ctx.store.state.prog[w.word];
-  say(w.word);
   const back = document.createElement("div");
   back.className = "modal-back";
   back.style.zIndex = 80;
@@ -136,11 +236,11 @@ function tokenSheet(wordKey, tokenText) {
   back.innerHTML = `<div class="modal stack" role="dialog" aria-label="${h(w.word)}">
       <div class="row">${tileHtml(w, "lg")}<div class="grow"><div style="font-size:26px;font-weight:800" lang="en">${h(w.word)}</div>
         <div class="muted">${h(posLabel(w.pos))} · <span class="chip lv lv-${w.level}">${w.level.toUpperCase()}</span>${tokenText.toLowerCase() !== w.word ? ` · metinde: <i>${h(tokenText)}</i>` : ""}</div></div>
-        <button class="icon-btn" data-a="say" data-t="${h(w.word)}" aria-label="Dinle">${icons.speaker}</button></div>
+        <button class="icon-btn" data-a="tok-close" aria-label="Kapat">${icons.close}</button></div>
       <ul style="list-style:none;padding:0;margin:0;font-size:20px;font-weight:700">${w.tr.map((m) => `<li>${h(m)}</li>`).join("")}</ul>
       ${w.example ? `<div class="card" style="font-style:italic" lang="en">${h(w.example)}</div>` : ""}
-      <div class="row">${!c ? `<button class="btn soft grow" data-a="tok-add" data-w="${h(w.word)}">Öğrenme listeme ekle</button>` : `<span class="muted grow">${c.s === 3 ? "Bildiğin kelime" : "Öğrenme listende"}</span>`}
-        <button class="btn grow" data-a="tok-close">Kapat</button></div></div>`;
+      <div class="row"><button class="btn grow" data-a="say" data-t="${h(w.word)}">${icons.speaker} Seslendir</button>
+        ${!c ? `<button class="btn soft grow" data-a="tok-add" data-w="${h(w.word)}">Sözlüğe ekle</button>` : `<span class="muted grow" style="text-align:center">${c.s === 3 ? "Bildiğin kelime" : "Listende"}</span>`}</div></div>`;
   back.addEventListener("click", (e) => { if (e.target === back) back.remove(); });
   document.body.appendChild(back);
 }
@@ -179,18 +279,23 @@ export function openGenerator() {
 
 Object.assign(ctx.actions, {
   "st-filter": (el) => { storyState.filter = el.dataset.v; ctx.rerender(); },
-  "story-read": (el) => openReader(el.dataset.id),
+  "story-read": (el) => openDetail(el.dataset.id),
   "reader-close": closeReader,
-  "reader-tr": () => { storyState.showTr = !storyState.showTr; openReader(storyState.current.id); },
+  "reader-detail": () => { stopListening(); openDetail(reader.story.id); },
+  "reader-start": () => { stopListening(); renderReader(); },
+  "reader-start-listen": () => { renderReader(); listenFrom(0); },
+  "reader-listen": () => { if (reader.listening) { stopListening(); renderReader(); } else { renderReader(); listenFrom(Math.max(0, reader.idx)); } },
+  "reader-font": () => { reader.font = (reader.font + 1) % FONTS.length; renderReader(); },
+  "reader-tr": () => { reader.trAll = !reader.trAll; renderReader(); },
+  "sent-tr": (el) => { const i = Number(el.dataset.i); reader.trOpen.has(i) ? reader.trOpen.delete(i) : reader.trOpen.add(i); refreshSentences(); },
+  "sent-play": (el) => { const i = Number(el.dataset.i); if (reader.listening && reader.idx === i) { stopListening(); refreshSentences(); } else listenFrom(i); },
   "reader-fav": () => {
-    const f = ctx.store.state.stories.fav, id = storyState.current.id;
+    const f = ctx.store.state.stories.fav, id = reader.story.id;
     if (f[id]) delete f[id]; else f[id] = 1;
-    ctx.store.save(); openReader(id);
+    ctx.store.save(); openDetail(id);
   },
-  "reader-all": () => say(storyState.current.en.join(" ")),
-  "para-say": (el) => say(storyState.current.en[Number(el.dataset.i)]),
   "reader-done": () => {
-    const s = storyState.current, st = ctx.store.state, today = dayNumber();
+    const s = reader.story, st = ctx.store.state, today = dayNumber();
     st.stories.read[s.id] = today;
     st.stats.storyDay = today;
     st.stats.xp += 15;
@@ -201,13 +306,22 @@ Object.assign(ctx.actions, {
   },
   tok: (el) => tokenSheet(el.dataset.w, el.dataset.t),
   "tok-close": () => { const s = document.getElementById("tok-sheet"); if (s) s.remove(); },
+  "target-open": () => targetSheet(),
+  "target-add-all": () => {
+    const tw = targetWords(reader.story), today = dayNumber();
+    tw.forEach((w) => { ctx.store.state.prog[w.word] = newProgress(today); });
+    ctx.store.save();
+    ctx.toast(`${tw.length} kelime öğrenme listene eklendi.`);
+    const s = document.getElementById("tok-sheet"); if (s) s.remove();
+    openDetail(reader.story.id);
+  },
   "tok-add": (el) => {
     const w = el.dataset.w;
     ctx.store.state.prog[w] = newProgress(dayNumber());
     ctx.store.save();
-    ctx.toast(`“${w}” öğrenme listene eklendi.`);
+    ctx.toast(`“${w}” sözlüğüne eklendi.`);
     const s = document.getElementById("tok-sheet"); if (s) s.remove();
-    if (storyState.current) { const body = document.getElementById("reader-text"); if (body) body.innerHTML = readerHtml(storyState.current); }
+    if (reader.story && document.getElementById("reader-text")) refreshSentences();
   },
   "gen-open": () => { storyState.gen.error = ""; openGenerator(); },
   "gen-settings": () => { document.getElementById("modal")?.remove(); ctx.go("settings"); },

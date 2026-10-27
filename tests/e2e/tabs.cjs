@@ -29,7 +29,7 @@ const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exitCode
   // Pratik yap
   await page.click('[data-a="nav"][data-v="practice"]');
   await page.waitForSelector(".plist-row");
-  assert((await page.locator(".plist-row").count()) === 10, "10 pratik modu listelendi");
+  assert((await page.locator(".plist-row").count()) === 12, "12 pratik modu listelendi");
   await page.screenshot({ path: `${OUT}/21-practice.png`, fullPage: true });
   await page.click('[data-a="pr:visual"]');
   await page.waitForSelector(".emoji-big");
@@ -45,6 +45,67 @@ const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exitCode
   await page.click('[data-a="s:done"]');
   const after = await page.evaluate(() => JSON.stringify(Object.values(window.__kb.store.state.prog).map((c) => c.due)));
   assert(before === after, "pratik modu zamanlamayı değiştirmedi");
+
+  // Harf kutularıyla yazma
+  await page.evaluate(() => { window.__kb.store.state.settings.writeMode = "tiles"; window.__kb.store.save(); });
+  await page.click('[data-a="pr:write"]');
+  await page.waitForSelector(".slots");
+  await page.screenshot({ path: `${OUT}/21b-tiles.png` });
+  let typed = 0;
+  for (let g = 0; g < 60 && !(await page.locator(".summary").count()); g++) {
+    if (await page.locator('[data-a="s:next"]').count()) { await page.click('[data-a="s:next"]'); await page.waitForTimeout(40); continue; }
+    const ex = await page.evaluate(() => window.__kb.currentExercise());
+    if (ex && ex.answer && await page.locator(".slots").count()) {
+      if (typed === 0) { // ipucu: ilk harfi doldurur
+        await page.click('[data-a="s:hint"]');
+        assert((await page.locator(".slot.f").count()) === 1, "ipucu bir harf yerleştirdi");
+        await page.click('.slot.f'); // geri al
+      }
+      for (const ch of ex.answer.toLowerCase()) await page.click(`.ltile[data-l="${ch}"]:not([disabled])`);
+      typed++;
+      await page.waitForTimeout(250);
+    } else await page.waitForTimeout(80);
+  }
+  assert(typed >= 5, `harf kutularıyla ${typed} kelime yazıldı`);
+  await page.click('[data-a="s:done"]');
+  // Dinleme: görsel seçenekler
+  await page.click('[data-a="pr:listen"]');
+  await page.waitForSelector("#opts");
+  let sawEmojiOpts = false;
+  for (let g = 0; g < 40 && !(await page.locator(".summary").count()); g++) {
+    if (await page.locator('[data-a="s:next"]').count()) { await page.click('[data-a="s:next"]'); await page.waitForTimeout(40); continue; }
+    const ex = await page.evaluate(() => window.__kb.currentExercise());
+    if (ex && ex.options) { if (ex.emojiOptions) sawEmojiOpts = true; await page.locator("#opts .opt").nth(ex.options.findIndex((o) => o.correct)).click(); await page.waitForTimeout(40); }
+    else await page.waitForTimeout(60);
+  }
+  assert(sawEmojiOpts, "dinleme modunda görsel seçenekli soru çıktı");
+  await page.click('[data-a="s:done"]');
+
+  // Liste ekranından pratik + "bildiklerimden çıkar"
+  await page.evaluate(() => { const { store } = window.__kb; store.state.prog.apple = { s: 3, due: 0 }; store.state.prog.cat = { s: 3, due: 0 }; store.state.prog.dog = { s: 3, due: 0 }; store.state.prog.egg = { s: 3, due: 0 }; store.state.prog.cup = { s: 3, due: 0 }; store.state.prog.pen = { s: 3, due: 0 }; store.state.prog.bus = { s: 3, due: 0 }; store.save(); });
+  await page.click('[data-a="nav"][data-v="progress"]');
+  await page.click('[data-a="prog-open"][data-v="known"]');
+  await page.waitForSelector(".x-btn");
+  assert(await page.locator('[data-a="list-practice"]').count() === 1, "liste ekranında Pratik yap düğmesi");
+  const nKnown = await page.locator(".witem").count();
+  await page.locator(".x-btn").first().click();
+  assert((await page.locator(".witem").count()) === nKnown - 1, "X ile bildiklerimden çıkarıldı");
+  await page.click('[data-a="list-practice"]');
+  await page.waitForSelector(".sess-body");
+  await page.click('[data-a="s:exit"]');
+  await page.click('[data-a="s:exit-yes"]');
+  await page.click('[data-a="nav"][data-v="practice"]');
+
+  // Meditasyon
+  await page.click('[data-a="pr:meditate"]');
+  await page.waitForSelector("#med-range");
+  await page.screenshot({ path: `${OUT}/27-meditation-setup.png` });
+  await page.click('[data-a="med:start"]');
+  await page.waitForSelector(".med-tr.in");
+  await page.waitForSelector(".med-en.in", { timeout: 6000 });
+  assert((await page.textContent("#med-en")).length > 0, "meditasyonda İngilizce kelime göründü");
+  await page.screenshot({ path: `${OUT}/28-meditation.png` });
+  await page.click('[data-a="med:close"]');
 
   // Slayt gösterisi
   await page.click('[data-a="pr:slides"]');
@@ -69,16 +130,34 @@ const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exitCode
   assert((await page.locator(".story-card").count()) === 2, "B1 filtresi 2 hikâye");
   await page.click('[data-a="st-filter"][data-v="all"]');
   await page.click('[data-a="story-read"][data-id="my-day"]');
-  await page.waitForSelector(".tok");
+  await page.waitForSelector(".detail-hero");
+  assert((await page.textContent(".detail")).includes("Hedef kelimeler"), "hikâye detay sayfası");
+  await page.screenshot({ path: `${OUT}/24b-detail.png` });
+  await page.click('[data-a="target-open"]');
+  await page.waitForSelector("#tok-sheet");
+  const nTarget = await page.locator("#tok-sheet .row.grow, #tok-sheet .stack > .row").count();
+  assert(nTarget > 3, "hedef kelimeler listelendi (" + nTarget + ")");
+  await page.click('[data-a="target-add-all"]');
+  assert(await page.evaluate(() => Object.keys(window.__kb.store.state.prog).length) > 15, "hedef kelimeler öğrenme listesine eklendi");
+  await page.click('[data-a="reader-start"]');
+  await page.waitForSelector(".sent");
+  assert((await page.locator(".sent").count()) === 9, "9 cümle satırı");
+  await page.click('.sent-tr[data-i="0"]');
+  assert((await page.textContent("#sent-0")).includes("Saat yedide kalkarım"), "cümle çevirisi açıldı");
+  await page.click('[data-a="reader-font"]');
   await page.click('.tok[data-w="breakfast"]');
   await page.waitForSelector("#tok-sheet");
   assert((await page.textContent("#tok-sheet")).includes("kahvaltı"), "kelimeye dokununca Türkçe karşılık açıldı");
   await page.screenshot({ path: `${OUT}/25-token.png` });
-  await page.click('[data-a="tok-add"]');
-  assert(await page.evaluate(() => !!window.__kb.store.state.prog.breakfast), "kelime öğrenme listesine eklendi");
+  await page.click('[data-a="tok-close"]');
   await page.click('[data-a="reader-tr"]');
-  assert((await page.textContent("#reader-text")).includes("Saat yedide kalkarım"), "Türkçe çeviri gösterildi");
+  assert((await page.textContent("#reader-text")).includes("Sekizde otobüsle"), "tüm çeviriler açıldı");
   await page.screenshot({ path: `${OUT}/26-reader.png` });
+  // Dinle: ses yoksa zamanlayıcıyla cümleler vurgulanır
+  await page.click('[data-a="reader-listen"]');
+  await page.waitForSelector(".sent.on", { timeout: 4000 });
+  assert(true, "dinleme modunda cümle vurgulandı");
+  await page.click('[data-a="reader-listen"]');
   await page.click('[data-a="reader-done"]');
   await page.waitForSelector(".story-card");
   assert((await page.textContent("#app")).includes("Okundu"), "hikâye okundu işaretlendi");

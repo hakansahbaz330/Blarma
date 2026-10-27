@@ -12,6 +12,8 @@ export const DEFAULT_SETTINGS = {
   speaking: true,
   autoplay: true,
   slideSeconds: 6,     // slayt gösterisi hızı
+  practiceCount: 10,   // pratik turu uzunluğu
+  writeMode: (typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse)").matches) ? "tiles" : "keyboard",
   maxReviews: 40,      // bir oturumdaki en fazla tekrar
   apiKey: "",          // isteğe bağlı: hikâyeler için kullanıcının kendi Anthropic anahtarı
   model: "claude-haiku-5-5",

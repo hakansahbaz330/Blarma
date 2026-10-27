@@ -18,6 +18,7 @@ const sayOpts = () => {
   return { accent: s.accent, rate: s.rate, voiceURI: s.voice };
 };
 export const say = (text) => speak(text, sayOpts());
+const saySlow = (text) => speak(text, { ...sayOpts(), rate: 0.5 });
 
 function closeAll() {
   stopSpeaking();
@@ -149,21 +150,27 @@ function decideIntro(d) {
 
 /* -------------------------------------------------------------- alıştırmalar */
 
+function speakBtns(word) {
+  return `<div class="row" style="justify-content:center;gap:14px;margin:8px 0"><button class="icon-btn say lgspk" data-a="s:say" data-t="${h(word)}" aria-label="Dinle">${icons.speaker.replace('width="22" height="22"', 'width="38" height="38"')}</button><button class="icon-btn" data-a="s:slow" data-t="${h(word)}" aria-label="Yavaş dinle" title="Yavaş dinle">🐢</button></div>`;
+}
+
 function promptHtml(ex, w) {
   const audioBtn = (txt) => `<button class="icon-btn say" data-a="s:say" data-t="${h(txt)}" aria-label="Dinle" style="margin:8px auto 0">${icons.speaker}</button>`;
   switch (ex.type) {
     case "emoji_mcq":
-      return `<div class="q-prompt"><div class="kicker">${h(ex.prompt)}</div><div class="emoji-big" aria-label="görsel">${ex.emoji}</div></div>`;
+      return `<div class="q-prompt"><div class="kicker">${h(ex.prompt)}</div><div class="emoji-big" aria-label="görsel">${ex.emoji}</div><div class="hint-chip">${h(ex.sub)}</div></div>`;
+    case "listen_emoji":
+      return `<div class="q-prompt"><div class="kicker">${h(ex.prompt)}</div>${speakBtns(w.word)}</div>`;
     case "mcq_en_tr":
       return `<div class="q-prompt"><div class="kicker">Türkçesi nedir?</div><div class="big" lang="en">${h(ex.prompt)}</div><div class="sub">${h(ex.sub)}</div>${audioBtn(w.word)}</div>`;
     case "mcq_tr_en":
       return `<div class="q-prompt"><div class="kicker">İngilizcesi nedir?</div><div class="big tr">${h(ex.prompt)}</div><div class="sub">${h(ex.sub)}</div></div>`;
     case "listen_mcq":
-      return `<div class="q-prompt"><div class="kicker">${h(ex.prompt)}</div><button class="icon-btn say" data-a="s:say" data-t="${h(w.word)}" aria-label="Tekrar dinle" style="width:84px;height:84px;margin:6px auto">${icons.speaker.replace('width="22" height="22"', 'width="38" height="38"')}</button></div>`;
+      return `<div class="q-prompt"><div class="kicker">${h(ex.prompt)}</div>${speakBtns(w.word)}</div>`;
     case "type_en":
       return `<div class="q-prompt"><div class="kicker">İngilizce yaz</div><div class="big tr">${h(ex.prompt)}</div><div class="sub">${h(ex.sub)}</div></div>`;
     case "dictation":
-      return `<div class="q-prompt"><div class="kicker">${h(ex.prompt)}</div><button class="icon-btn say" data-a="s:say" data-t="${h(w.word)}" aria-label="Tekrar dinle" style="width:84px;height:84px;margin:6px auto">${icons.speaker.replace('width="22" height="22"', 'width="38" height="38"')}</button>${ex.sub ? `<div class="sub">${h(ex.sub)}</div>` : ""}</div>`;
+      return `<div class="q-prompt"><div class="kicker">${h(ex.prompt)}</div>${speakBtns(w.word)}${ex.sub ? `<div class="sub">${h(ex.sub)}</div>` : ""}</div>`;
     case "cloze": {
       const c = ex.cloze;
       return `<div class="q-prompt"><div class="kicker">${h(ex.prompt)} · <span lang="tr">${h(ex.sub)}</span></div></div>
@@ -179,10 +186,16 @@ function renderExercise(t) {
   const ex = t.ex;
   const w = wordOf(t);
   const optionsHtml = ex.options
-    ? `<div class="options" id="opts">${ex.options.map((o, i) => `<button class="opt" data-a="s:opt" data-i="${i}"><kbd>${i + 1}</kbd><span>${h(o.label)}</span></button>`).join("")}</div>`
+    ? `<div class="options ${ex.emojiOptions ? "emoji-grid" : ""}" id="opts">${ex.options.map((o, i) => ex.emojiOptions
+        ? `<button class="opt emoji-opt" data-a="s:opt" data-i="${i}" aria-label="Seçenek ${i + 1}"><span>${o.label}</span></button>`
+        : `<button class="opt" data-a="s:opt" data-i="${i}"><kbd>${i + 1}</kbd><span>${h(o.label)}</span></button>`).join("")}</div>`
     : "";
   const typed = ex.type === "type_en" || ex.type === "dictation" || (ex.type === "cloze" && ex.mode === "type");
-  const typedHtml = typed
+  const tiles = typed && useTiles(ex);
+  ui.tiles = tiles ? makeTiles(ex.answer) : null;
+  const typedHtml = tiles
+    ? `<div class="slots" id="slots"></div><div class="tiles" id="tiles"></div><div class="hintline" id="hintline"></div>`
+    : typed
     ? `<input class="type-in" id="ans" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" lang="en" aria-label="Cevabın">
        <div class="hintline" id="hintline"></div>`
     : "";
@@ -190,10 +203,9 @@ function renderExercise(t) {
     ? `<button class="mic" id="mic" data-a="s:mic" aria-label="Konuşmaya başla">${icons.mic}</button><p class="muted" style="text-align:center" id="mic-msg">Mikrofon simgesine dokun ve kelimeyi söyle.</p>`
     : "";
   body().innerHTML = promptHtml(ex, w) + typedHtml + speakHtml + optionsHtml + `<div id="fb"></div>`;
-  const tools = [];
   if (typed) {
-    tools.push(`<button class="btn ghost sm" data-a="s:hint">İpucu</button>`);
-    foot().innerHTML = `<div class="row"><button class="btn" data-a="s:idk">Bilmiyorum</button><button class="btn primary grow" data-a="s:check">Kontrol et</button></div>`;
+    foot().innerHTML = `<div class="row"><button class="btn" data-a="s:idk">Bilmiyorum</button><button class="btn" data-a="s:hint" aria-label="İpucu">İpucu</button><button class="btn primary grow" data-a="s:check">Kontrol et</button></div>`;
+    if (tiles) drawTiles();
   } else if (ex.type === "speak") {
     foot().innerHTML = `<div class="row"><button class="btn" data-a="s:idk">Bilmiyorum</button><button class="btn grow" data-a="s:skipspeak">Şimdi söyleyemem</button></div>`;
   } else {
@@ -261,10 +273,80 @@ function onOption(i) {
   finishAnswer({ correct: ex.options[i].correct });
 }
 
+function useTiles(ex) {
+  return ctx.store.state.settings.writeMode === "tiles" && /^[a-z]{2,12}$/i.test(ex.answer);
+}
+
+function makeTiles(answer) {
+  const counts = {};
+  for (const ch of answer.toLowerCase()) counts[ch] = (counts[ch] || 0) + 1;
+  // Harfleri karıştır (kelimenin kendisi gibi görünmesin)
+  const letters = Object.keys(counts).sort(() => Math.random() - 0.5);
+  return { slots: Array(answer.length).fill(""), counts, letters, answer: answer.toLowerCase(), state: "" };
+}
+
+function drawTiles() {
+  const T = ui.tiles;
+  const slots = document.getElementById("slots");
+  const tl = document.getElementById("tiles");
+  if (!slots || !tl) return;
+  slots.innerHTML = T.slots.map((l, i) => `<button class="slot ${l ? "f" : ""} ${T.state}" data-a="s:slot" data-i="${i}" aria-label="Harf ${i + 1}">${h(l)}</button>`).join("");
+  tl.innerHTML = T.letters.map((l) => `<button class="ltile" data-a="s:tile" data-l="${l}" ${T.counts[l] ? "" : "disabled"} aria-label="${l}">${l}${T.counts[l] > 1 ? `<sup>${T.counts[l]}</sup>` : ""}</button>`).join("");
+}
+
+function tilePress(letter) {
+  const T = ui && ui.tiles;
+  if (!T || ui.answered || !T.counts[letter]) return;
+  const i = T.slots.indexOf("");
+  if (i < 0) return;
+  T.slots[i] = letter;
+  T.counts[letter]--;
+  drawTiles();
+  if (T.slots.indexOf("") < 0) setTimeout(onCheck, 120);
+}
+
+function slotPress(i) {
+  const T = ui && ui.tiles;
+  if (!T || ui.answered || !T.slots[i]) return;
+  T.counts[T.slots[i]]++;
+  T.slots[i] = "";
+  drawTiles();
+}
+
+function tileBackspace() {
+  const T = ui && ui.tiles;
+  if (!T || ui.answered) return;
+  for (let i = T.slots.length - 1; i >= 0; i--) if (T.slots[i]) return slotPress(i);
+}
+
+function tileHint() {
+  const T = ui.tiles;
+  const i = T.slots.findIndex((l, k) => l !== T.answer[k]);
+  if (i < 0) return;
+  const need = T.answer[i];
+  if (T.slots[i]) { T.counts[T.slots[i]]++; T.slots[i] = ""; }
+  if (!T.counts[need]) {
+    const j = T.slots.findIndex((l, k) => l === need && k !== i && T.answer[k] !== need);
+    if (j >= 0) { T.slots[j] = ""; T.counts[need]++; }
+  }
+  if (T.counts[need]) { T.slots[i] = need; T.counts[need]--; }
+  drawTiles();
+  if (T.slots.indexOf("") < 0) setTimeout(onCheck, 150);
+}
+
 function onCheck() {
   if (ui.answered) return;
   const t = currentTask();
   const ex = t.ex;
+  if (ui.tiles) {
+    const T = ui.tiles;
+    if (T.slots.indexOf("") >= 0) { ctx.toast("Önce tüm harfleri yerleştir."); return; }
+    const r = checkTyped(ex.answer, T.slots.join(""));
+    T.state = r.ok ? "ok" : "bad";
+    drawTiles();
+    finishAnswer({ correct: r.ok, close: r.close });
+    return;
+  }
   const input = document.getElementById("ans");
   const r = checkTyped(ex.answer, input.value);
   if (!input.value.trim()) { input.focus(); return; }
@@ -282,6 +364,7 @@ function onIdk() {
   }
   const input = document.getElementById("ans");
   if (input) { input.classList.add("bad"); input.disabled = true; }
+  if (ui.tiles) { ui.tiles.state = "bad"; ui.tiles.slots = ui.tiles.answer.split(""); drawTiles(); }
   finishAnswer({ correct: false });
 }
 
@@ -369,6 +452,9 @@ function onKey(e) {
     if (e.target && e.target.tagName === "BUTTON") return; // düğme kendi tıklamasını işler
     if (ui && ui.answered) { e.preventDefault(); next2(); }
     else if (inInput) { e.preventDefault(); onCheck(); }
+  } else if (ui && ui.tiles && !ui.answered && !e.ctrlKey && !e.metaKey) {
+    if (/^[a-zA-Z]$/.test(e.key)) tilePress(e.key.toLowerCase());
+    else if (e.key === "Backspace") { e.preventDefault(); tileBackspace(); }
   } else if (!inInput && /^[1-5]$/.test(e.key) && ui && !ui.answered) {
     const b = document.querySelectorAll("#opts .opt")[Number(e.key) - 1];
     if (b) b.click();
@@ -381,6 +467,9 @@ function onKey(e) {
 
 Object.assign(ctx.actions, {
   "s:say": (el) => say(el.dataset.t),
+  "s:slow": (el) => saySlow(el.dataset.t),
+  "s:tile": (el) => tilePress(el.dataset.l),
+  "s:slot": (el) => slotPress(Number(el.dataset.i)),
   "s:exit": () => exitConfirm(),
   "s:exit-yes": () => { document.querySelectorAll(".modal-back").forEach((m) => m.remove()); closeAll(); },
   "s:exit-no": () => document.querySelectorAll(".modal-back").forEach((m) => m.remove()),
@@ -391,7 +480,9 @@ Object.assign(ctx.actions, {
   "s:idk": () => (placement && placement.current ? placementPick(-1) : onIdk()),
   "s:hint": () => {
     const t = currentTask();
-    if (!t || !t.ex.hint || ui.answered) return;
+    if (!t || ui.answered) return;
+    if (ui.tiles) { ui.hinted = true; return tileHint(); }
+    if (!t.ex.hint) return;
     ui.hinted = true;
     document.getElementById("hintline").textContent = t.ex.hint;
   },

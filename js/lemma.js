@@ -50,3 +50,16 @@ export function tokenize(text) {
   while ((m = re.exec(text))) out.push(m[1] ? { t: m[1], word: true } : { t: m[2] });
   return out;
 }
+
+/** Cümlelere böler; küçük harfle başlayan parçaları (ör. tırnak sonrası "der.") öncekine ekler. */
+export function splitSentences(text) {
+  const raw = text.match(/[^.!?]+[.!?]+["”’']?\s*/g) || [text];
+  const out = [];
+  for (const part of raw) {
+    const t = part.trim();
+    if (!t) continue;
+    if (out.length && /^[a-zçğıöşü]/.test(t)) out[out.length - 1] += " " + t;
+    else out.push(t);
+  }
+  return out;
+}
