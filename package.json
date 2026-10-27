@@ -1,0 +1,12 @@
+{
+  "name": "blarma-clone",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Kelime Bahçesi: aralıklı tekrarlı, çevrimdışı çalışan İngilizce-Türkçe kelime öğrenme uygulaması (PWA)",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "build:words": "python3 tools/build_words.py",
+    "test": "node --test tests/*.test.js"
+  }
+}

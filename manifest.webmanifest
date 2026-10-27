@@ -1,0 +1,16 @@
+{
+  "name": "Kelime Bahçesi",
+  "short_name": "Kelime Bahçesi",
+  "description": "Aralıklı tekrar ve sesli telaffuzla İngilizce kelime öğren (A1–C1).",
+  "lang": "tr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f8f7",
+  "theme_color": "#0f9d6b",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
