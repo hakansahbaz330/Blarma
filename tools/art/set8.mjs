@@ -1,13 +1,13 @@
 // Set 8: insanlar (20), vücut (7), spor ve yapı elemanları (17)
 import { T, INK } from "./kit2.mjs";
 
-const SK = ["#ffe0c8", "#f0b896", "#c98a66"];
-const HAIR = {
+export const SK = ["#ffe0c8", "#f0b896", "#c98a66"];
+export const HAIR = {
   brown: ["#8a5a30", "#4a2a10"], black: ["#4a4a52", "#14141a"], blond: ["#fff0a0", "#d9a62e"], red: ["#e08a5a", "#8f3a1c"], gray: ["#f1f5f7", "#aab8c0"],
 };
 
 // Ortak büst: omuzlar + boyun + baş + yüz. Çizim sırası: arka saç → gövde → baş → yüz → ön saç.
-function bust(k, { shirt, back = "", front = "", head = 22, y = 38, extra = "", late = "" }) {
+export function bust(k, { shirt, back = "", front = "", head = 22, y = 38, extra = "", late = "" }) {
   return [
     back,
     k.P("M12 90c0-20 14-28 36-28s36 8 36 28z", shirt, { lin: true, x1: 0, y1: 0, x2: 1, y2: 1 }), k.R(42, y + head - 6, 12, 14, 4, ["#f0b896", "#c98a66"]), extra,
@@ -17,8 +17,8 @@ function bust(k, { shirt, back = "", front = "", head = 22, y = 38, extra = "", 
     k.C(37, y + 8, 3, "#ff8a8a", { op: 0.25 }), k.C(59, y + 8, 3, "#ff8a8a", { op: 0.25 }), front, late,
   ].join("");
 }
-const hairCap = (k, c, y = 38) => k.P(`M26 ${y - 2}c0-16 8-22 22-22s22 6 22 22c-4-8-10-10-22-10s-18 2-22 10z`, c);
-const crown = (k, x, y, s = 1) => k.P(`M${x - 14 * s} ${y + 10 * s}l-2-14 8 6 8-10 8 10 8-6-2 14z`, T.gold, { lin: true }) + k.C(x - 8 * s, y + 6 * s, 1.6, T.red) + k.C(x + 8 * s, y + 6 * s, 1.6, T.blue);
+export const hairCap = (k, c, y = 38) => k.P(`M26 ${y - 2}c0-16 8-22 22-22s22 6 22 22c-4-8-10-10-22-10s-18 2-22 10z`, c);
+export const crown = (k, x, y, s = 1) => k.P(`M${x - 14 * s} ${y + 10 * s}l-2-14 8 6 8-10 8 10 8-6-2 14z`, T.gold, { lin: true }) + k.C(x - 8 * s, y + 6 * s, 1.6, T.red) + k.C(x + 8 * s, y + 6 * s, 1.6, T.blue);
 
 export const set8 = {
   head: (k) => [

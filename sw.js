@@ -1,5 +1,5 @@
 // Basit çevrimdışı önbellek: uygulama kabuğu önce önbellekten, ağ yedek.
-const VERSION = "kb-v9";
+const VERSION = "kb-v10";
 try { importScripts("data/art.js", "data/fields.js", "data/fields.js"); } catch { /* çizim listesi yoksa yalnızca çalışma anında önbelleğe alınır */ }
 const ART = [...(self.KB_ART || []).map((w) => `art/${encodeURIComponent(w)}.svg`), ...Object.keys(self.KB_FIELD_LABELS || {}).map((c) => `art/field-${c}.svg`)];
 const ASSETS = [

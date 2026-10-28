@@ -26,7 +26,7 @@ NODE_PATH=$(npm root -g) node tests/e2e/offline.cjs   # çevrimdışı açılı�
 ## Özellikler
 
 * **4 sekme:** **Öğren** (günün görevleri, "daha fazla görev", günün kelimeleri), **Pratik yap** (10 mod), **Hikâyeler** (kütüphane + okuyucu), **İlerleme** (aralıklı tekrar aşamaları, istatistik, kelime listesi). Ayarlar profil simgesinden.
-* **Görseller:** 263 somut kelime için **özgün vektör çizim** (`art/`, kodla üretilir: `node tools/art/real.mjs`); çizimi olmayan somut kelimelerde emoji, diğerlerinde seviye renginde harf karosu. Kart, günün kelimeleri ve **Görsel testi**nde kullanılır; bir sorudaki seçeneklerin hepsi aynı görsel dilde (çizim ya da emoji) gelir.
+* **Görseller:** 698 somut kelime için **özgün vektör çizim** (`art/`, kodla üretilir: `node tools/art/real.mjs`); çizimi olmayan somut kelimelerde emoji, diğerlerinde seviye renginde harf karosu. Kart, günün kelimeleri ve **Görsel testi**nde kullanılır; bir sorudaki seçeneklerin hepsi aynı görsel dilde (çizim ya da emoji) gelir.
 * **Hikâyeler:** 10 özgün, çevrimdışı hikâye (A1–B1), paragraf Türkçe çevirisi, **kelimeye dokununca anlam** (çekimli biçimler çözülür), bildiğin kelimeler yeşil, tek dokunuşla öğrenme listesine ekleme, günün hikâyesi görevi, favoriler ve hikâyelerde kelime arama.
 * **Pratik modları:** karma, slayt gösterisi (sesli, otomatik), dinleme, telaffuz, yazma, dikte, görsel testi, çeviri, ters çeviri, cümle tamamlama; kaynak: öğrendiklerim / zor / favoriler. Pratik zamanlamayı değiştirmez.
 * **Günlük akış:** önce vadesi gelen tekrarlar, sonra 3'lü gruplar hâlinde yeni kelimeler (tanıt → tanı → pekiştir).

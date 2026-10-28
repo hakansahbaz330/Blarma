@@ -5,7 +5,7 @@ import { makeKit } from "./kit2.mjs";
 const groups = {};
 for (const f of readdirSync(new URL(".", import.meta.url))) {
   const m = f.match(/^set(\d+)\.mjs$/);
-  if (m) for (const set of Object.values(await import(`./${f}`))) Object.assign(groups, set);
+  if (m) { const mod = await import(`./${f}`); for (const [name, set] of Object.entries(mod)) if (/^set\d+$/.test(name)) Object.assign(groups, set); }
 }
 import { readFileSync } from "node:fs";
 import { familyEntries } from "./families.mjs";
