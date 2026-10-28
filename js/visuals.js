@@ -18,6 +18,19 @@ export function visualKey(word) {
   return hasArt(word) ? `art:${word}` : emojiFor(word);
 }
 
+/** Kavram birleşimi: [ana, rozet, köşe] çizim adları; yoksa null. Soyut kelimeler için (somut kelimelerin çizimi/emojisi önceliklidir). */
+export function conceptOf(word) {
+  const m = (typeof self !== "undefined" && self.KB_CONCEPT) || {};
+  return m[word] ? m[word].split(",") : null;
+}
+
+/** Ekranda gösterilecek görsel: çizim, kavram birleşimi, emoji. (Görsel sınavlar yalnızca visualKey kullanır.) */
+export function shownKey(word) {
+  if (hasArt(word)) return `art:${word}`;
+  const c = (typeof self !== "undefined" && self.KB_CONCEPT) || {};
+  return c[word] ? `mix:${c[word]}` : emojiFor(word);
+}
+
 /** Soyut kelimeler için anlam alanı (ör. "mo" = para ve finans); yoksa "". */
 export function fieldOf(word) {
   const m = (typeof self !== "undefined" && self.KB_FIELD) || {};
@@ -43,12 +56,17 @@ export function hasEmoji(word) {
 export function renderVisual(key) {
   if (!key) return "";
   if (key.startsWith("art:")) return `<img class="art" src="art/${encodeURIComponent(key.slice(4))}.svg" alt="" draggable="false" decoding="async">`;
+  if (key.startsWith("mix:")) {
+    const img = (n, c) => (n ? `<img class="art ${c}" src="art/${encodeURIComponent(n)}.svg" alt="" draggable="false" decoding="async">` : "");
+    const [a, b, c] = key.slice(4).split(",");
+    return `<span class="mix">${img(a, "m0")}${img(b, "m1")}${img(c, "m2")}</span>`;
+  }
   return key;
 }
 
 /** Kare görsel karo. size: sm | md | lg | xl | fill */
 export function tileHtml(w, size = "md") {
-  const v = visualKey(w.word);
+  const v = shownKey(w.word);
   const lv = w.level || "k";
   const f = v ? "" : fieldOf(w.word);
   const inner = v ? renderVisual(v) : f ? `<img class="art field" src="art/field-${f}.svg" alt="" draggable="false" decoding="async">` : `<b>${w.word[0].toUpperCase()}</b>`;

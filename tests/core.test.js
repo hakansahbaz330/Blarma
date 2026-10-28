@@ -407,13 +407,13 @@ test("örnek cümle çevirileri: her kelimede var, boş ya da İngilizce kopya d
   assert.ok(words.filter((w) => /[çğıöşüÇĞİÖŞÜ]/.test(w.exampleTr)).length / words.length > 0.5, "çoğu çeviride Türkçe karakter olmalı");
 });
 
-import { readdirSync } from "node:fs";
+import { readdirSync, existsSync } from "node:fs";
 import { visualKey, hasEmoji, hasArt, renderVisual, tileHtml } from "../js/visuals.js";
 
 test("çizimler: her kelime sözlükte, dosya geçerli SVG, kimlikler dosyaya özgü, liste dosyalarla eşleşir", () => {
   const src = readFileSync(new URL("../data/art.js", import.meta.url), "utf8");
   const list = new Function("self", src + "; return self.KB_ART;")({});
-  const files = readdirSync(new URL("../art/", import.meta.url)).filter((f) => f.endsWith(".svg") && !f.startsWith("field-")).map((f) => f.slice(0, -4)).sort();
+  const files = readdirSync(new URL("../art/", import.meta.url)).filter((f) => f.endsWith(".svg") && !f.startsWith("field-") && !f.startsWith("x-")).map((f) => f.slice(0, -4)).sort();
   assert.deepEqual(files, [...list].sort());
   const words = new Set(readFileSync(new URL("../data-src/wordlist.psv", import.meta.url), "utf8").split("\n").map((l) => l.split("|")[0]));
   for (const w of list) {
@@ -452,4 +452,40 @@ test("her sözlük kelimesinin görseli var: çizim, emoji ya da anlam alanı (h
   assert.deepEqual(missing, [], `görseli olmayan kelimeler: ${missing.slice(0, 10)}`);
   for (const c of Object.keys(fld.l)) assert.ok(readFileSync(new URL(`../art/field-${c}.svg`, import.meta.url), "utf8").startsWith("<svg"), `field-${c}.svg yok`);
   for (const [w, c] of Object.entries(fld.m)) assert.ok(fld.l[c], `${w}: bilinmeyen alan ${c}`);
+});
+
+test("kavram birleşimleri: soyut kelimelerin hepsinde var, parçalar mevcut, hiçbir iki kelimenin görseli aynı değil", () => {
+  const art = new Function("self", readFileSync(new URL("../data/art.js", import.meta.url), "utf8") + "; return self.KB_ART;")({});
+  const emoji = new Function("window", readFileSync(new URL("../data/emoji.js", import.meta.url), "utf8") + "; return window.KB_EMOJI;")({});
+  const con = new Function("self", readFileSync(new URL("../data/concepts.js", import.meta.url), "utf8") + "; return self.KB_CONCEPT;")({});
+  const words = readFileSync(new URL("../data-src/wordlist.psv", import.meta.url), "utf8").split("\n").filter(Boolean).map((l) => l.split("|")[0]);
+  const wordSet = new Set(words), artSet = new Set(art);
+  const none = words.filter((w) => !artSet.has(w) && !emoji[w] && !con[w]);
+  assert.deepEqual(none, [], `kavram görseli olmayan: ${none.slice(0, 10)}`);
+  const seen = new Map();
+  for (const [w, v] of Object.entries(con)) {
+    assert.ok(wordSet.has(w), `${w} sözlükte yok`);
+    assert.ok(!artSet.has(w), `${w}: çizimi varken kavram birleşimi olmamalı`);
+    const parts = v.split(",");
+    assert.ok(parts.length >= 1 && parts.length <= 3);
+    for (const p of parts) assert.ok(existsSync(new URL(`../art/${encodeURIComponent(p)}.svg`, import.meta.url)), `${w}: ${p} çizimi yok`);
+    assert.ok(!seen.has(v), `${w} ve ${seen.get(v)} aynı görseli kullanıyor (${v})`);
+    seen.set(v, w);
+  }
+  // emojisi başkasıyla paylaşılan kelimeler kavram görseline sahiptir; emoji yalnızca bir kelimeye kalır
+  const byEmoji = new Map();
+  for (const w of words) if (emoji[w] && !artSet.has(w) && !con[w]) (byEmoji.get(emoji[w]) ?? byEmoji.set(emoji[w], []).get(emoji[w])).push(w);
+  const shared = [...byEmoji.values()].filter((l) => l.length > 1);
+  assert.deepEqual(shared, [], `aynı emojiyi paylaşan: ${shared.map((l) => l.join("/")).join(" ")}`);
+});
+
+test("x-* piktogram dosyaları geçerli SVG ve kimlikleri dosyaya özgü", () => {
+  const files = readdirSync(new URL("../art/", import.meta.url)).filter((f) => f.startsWith("x-"));
+  assert.ok(files.length >= 60);
+  for (const f of files) {
+    const svg = readFileSync(new URL(`../art/${f}`, import.meta.url), "utf8");
+    assert.match(svg, /^<svg [^>]*viewBox="0 0 96 96"/);
+    assert.ok(!/(href|src)=|<script|<image|url\(http/i.test(svg));
+    for (const m of svg.matchAll(/id="([^"]+)"/g)) assert.ok(m[1] === "kb" || m[1] === "kb2" || m[1].startsWith(f.slice(0, -4).replace(/[^a-zA-Z0-9]/g, "_")), `${f}: kimlik ${m[1]}`);
+  }
 });

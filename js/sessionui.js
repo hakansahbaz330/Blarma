@@ -5,7 +5,7 @@ import { makeExercise, checkTyped, posLabel, shortMeaning } from "./exercises.js
 import { LEVELS, LEVEL_LABELS, forecast } from "./srs.js";
 import { speak, stopSpeaking, listenOnce, caps as speechCaps } from "./speech.js";
 import { icons, plants } from "./icons.js";
-import { tileHtml, visualKey, renderVisual, fieldChip } from "./visuals.js";
+import { tileHtml, visualKey, shownKey, renderVisual, fieldChip } from "./visuals.js";
 import { escapeHtml as h, dayNumber, shuffle } from "./util.js";
 
 let S = null;            // etkin oturum
@@ -238,7 +238,7 @@ function feedbackHtml(ok, close, w, extra = "") {
   const title = ok ? (close ? "Neredeyse! Doğru yazım:" : ["Harika!", "Doğru!", "Süper!", "Tam isabet!"][Math.floor(Math.random() * 4)]) : "Doğrusu:";
   return `<div class="feedback ${ok ? "ok" : "bad"}" role="status">
       <h3>${h(title)}</h3>
-      <div class="w" lang="en">${visualKey(w.word) ? `<span class="inl-vis">${renderVisual(visualKey(w.word))}</span> ` : ""}${h(w.word)} <span class="muted" style="font-weight:600;font-size:15px">· ${h(posLabel(w.pos))}</span></div>
+      <div class="w" lang="en">${shownKey(w.word) ? `<span class="inl-vis">${renderVisual(shownKey(w.word))}</span> ` : ""}${h(w.word)} <span class="muted" style="font-weight:600;font-size:15px">· ${h(posLabel(w.pos))}</span></div>
       <div>${h(w.tr.join(" · "))}</div>
       ${w.example ? `<div class="ex" lang="en">${h(w.example)}</div>` : ""}
       ${w.exampleTr ? `<div class="ex-tr" lang="tr">${h(w.exampleTr)}</div>` : ""}

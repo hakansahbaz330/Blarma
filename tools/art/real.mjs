@@ -28,5 +28,5 @@ for (const [w, fn] of Object.entries(groups)) {
   n++;
 }
 if (sheetPath) writeFileSync(sheetPath, `<!doctype html><meta charset=utf-8><style>body{margin:0;padding:16px;background:#f4f5f1;font:13px system-ui;display:grid;grid-template-columns:repeat(14,1fr);gap:10px}figure{margin:0;text-align:center}.t{background:#e3ece8;border-radius:16px;padding:8px}svg{width:100%;height:auto;display:block}</style>${sheet}`);
-writeFileSync(new URL("../../data/art.js", import.meta.url), `// Otomatik üretildi: node tools/art/real.mjs (çizimi olan kelimeler)\nself.KB_ART = ${JSON.stringify(Object.keys(groups).sort())};\n`);
+writeFileSync(new URL("../../data/art.js", import.meta.url), `// Otomatik üretildi: node tools/art/real.mjs (çizimi olan kelimeler)\nself.KB_ART = ${JSON.stringify(Object.keys(groups).filter((n) => !n.startsWith("x-")).sort())};\n`);
 console.log(n, "çizim →", out);
