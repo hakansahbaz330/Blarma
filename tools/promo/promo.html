@@ -1,0 +1,154 @@
+<!doctype html><meta charset="utf-8">
+<style>
+@font-face{font-family:"Bricolage Grotesque";font-weight:200 800;src:url(../../fonts/bricolage-grotesque-latin-ext-wght-normal.woff2) format("woff2-variations");unicode-range:U+0100-02BA,U+1E00-1E9F}
+@font-face{font-family:"Bricolage Grotesque";font-weight:200 800;src:url(../../fonts/bricolage-grotesque-latin-wght-normal.woff2) format("woff2-variations");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F}
+@font-face{font-family:"Figtree";font-weight:300 900;src:url(../../fonts/figtree-latin-ext-wght-normal.woff2) format("woff2-variations");unicode-range:U+0100-02BA,U+1E00-1E9F}
+@font-face{font-family:"Figtree";font-weight:300 900;src:url(../../fonts/figtree-latin-wght-normal.woff2) format("woff2-variations");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F}
+:root{--bg:#f4f5f1;--ink:#17231f;--muted:#5b6862;--pri:#1a5c4f;--pri2:#dcebe5;--acc:#d9542b;--ok:#2f8a4f;--sur:#fff;--bd:#dde2dc}
+*{box-sizing:border-box;margin:0}
+html,body{width:1080px;height:1920px;overflow:hidden;background:var(--bg);font-family:Figtree,system-ui,sans-serif;color:var(--ink)}
+#bg{position:absolute;inset:0;background:radial-gradient(900px 700px at 80% 8%,#dcebe5 0,transparent 70%),radial-gradient(800px 700px at 5% 95%,#fbe4da 0,transparent 70%),var(--bg)}
+.scene{position:absolute;inset:0;opacity:0}
+.h{font-family:"Bricolage Grotesque";font-weight:800;letter-spacing:-.03em;line-height:1.02}
+.abs{position:absolute}
+.center{left:0;right:0;text-align:center}
+.cap{position:absolute;left:70px;right:70px;text-align:center;font-weight:700;font-size:44px;color:var(--muted);line-height:1.25}
+.brand{position:absolute;left:0;right:0;display:flex;align-items:center;gap:24px;justify-content:center}
+.logo{width:140px;height:140px;border-radius:36px;background:var(--pri);display:grid;place-items:center}
+.logo svg{width:84px;height:84px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.phone{position:absolute;left:190px;width:700px;height:1240px;border-radius:84px;background:#17231f;padding:22px;box-shadow:0 60px 120px -40px rgba(23,35,31,.5)}
+.screen{width:100%;height:100%;border-radius:64px;background:var(--bg);position:relative;overflow:hidden}
+.card{position:absolute;left:36px;right:36px;top:120px;height:830px;border-radius:44px;background:#fff;border:3px solid var(--bd);box-shadow:0 20px 50px -24px rgba(16,36,30,.25);text-align:center}
+.tile{width:230px;height:230px;border-radius:56px;background:#dcebe5;position:relative;margin:50px auto 0;display:block}
+.tile img{position:absolute}
+.pill{display:inline-block;padding:8px 26px;border-radius:99px;background:#eceee9;font-weight:700;font-size:30px;color:var(--muted);margin:0 6px}
+.pill.a1{background:#3a8f5c;color:#fff}
+.btn{position:absolute;bottom:56px;height:110px;border-radius:30px;font-weight:800;font-size:38px;display:grid;place-items:center}
+.skills{display:grid;grid-template-columns:1fr 1fr;gap:30px;padding:0 90px;position:absolute;left:0;right:0}
+.sk{background:#fff;border:3px solid var(--bd);border-radius:44px;padding:36px 30px;text-align:center;box-shadow:0 16px 40px -22px rgba(16,36,30,.25)}
+.sk .ic{width:110px;height:110px;border-radius:50%;margin:0 auto 18px;display:grid;place-items:center;background:#dcebe5;color:var(--pri)}
+.sk .ic svg{width:58px;height:58px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.sk b{font-size:44px;font-family:"Bricolage Grotesque"}
+.stars{display:flex;justify-content:center;gap:6px;margin-top:12px}
+.stars svg{width:54px;height:54px;fill:#dde2dc}
+.grid{position:absolute;left:90px;right:90px;display:grid;grid-template-columns:repeat(3,1fr);gap:30px}
+.gt{aspect-ratio:1;border-radius:50px;background:#dcebe5;display:grid;place-items:center}
+.gt img{width:78%;height:78%}
+</style>
+<div id="bg"></div>
+<!-- S1 -->
+<div class="scene" id="s1">
+  <div class="abs h center" style="top:170px;font-size:104px;padding:0 60px">Kelimeleri<br>öğreniyorsun…</div>
+  <div class="abs h center" id="s1b" style="top:520px;font-size:104px;color:var(--acc);padding:0 60px">sonra<br>unutuyorsun.</div>
+  <svg class="abs" style="left:70px;top:900px" width="940" height="640" viewBox="0 0 940 640">
+    <path d="M40 20V600H900" stroke="#c9d0c9" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <path id="c1" d="M50 60C140 300 280 480 880 560" stroke="#d9542b" stroke-width="14" fill="none" stroke-linecap="round"/>
+  </svg>
+  <div class="cap" style="top:1590px" id="s1c">Çoğu uygulama bunu çözmüyor.<br>Zamanlama çözüyor.</div>
+</div>
+<!-- S2 -->
+<div class="scene" id="s2">
+  <div class="abs h center" style="top:170px;font-size:100px;padding:0 60px">Tam unutacağın<br><span style="color:var(--pri)">anda tekrar et.</span></div>
+  <svg class="abs" style="left:70px;top:620px" width="940" height="760" viewBox="0 0 940 760">
+    <path d="M40 20V700H900" stroke="#c9d0c9" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <path id="c2" d="M50 80C100 200 150 300 200 420 L200 100C260 230 340 330 430 460 L430 140C540 250 660 330 760 430 L760 180C800 240 850 280 890 320" stroke="#1a5c4f" stroke-width="14" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <g id="dots"></g>
+  </svg>
+  <div class="abs" style="left:70px;right:70px;top:1420px;display:flex;justify-content:space-between;font:800 44px 'Bricolage Grotesque';text-align:center" id="days"></div>
+  <div class="cap" style="top:1590px" id="s2c">Her tekrardan sonra bir sonraki<br>aralık uzar: 1 · 3 · 7 · 30 gün</div>
+</div>
+<!-- S3 -->
+<div class="scene" id="s3">
+  <div class="abs brand" style="top:150px"><div class="logo"><svg viewBox="0 0 24 24"><path d="M12 21v-9"/><path d="M12 13c-4.5 0-6.5-2-6.5-5.5C10 7.5 12 9.500 12 13z"/><path d="M12 11c0-4 2.500-6 6.500-6 0 4-2 6-6.500 6z"/></svg></div><div class="h" style="font-size:96px">Kelime<br>Bahçesi</div></div>
+  <div class="phone" style="top:470px" id="ph"><div class="screen">
+    <div id="cardA" class="card"><div class="tile"><img src="../../art/gift.svg" style="left:6px;top:6px;width:200px;height:200px"><div style="position:absolute;right:-10px;bottom:-10px;width:110px;height:110px;border-radius:50%;background:#fff;box-shadow:0 6px 18px rgba(0,0,0,.2)"><img src="../../art/hand.svg" style="left:14px;top:14px;width:82px;height:82px"></div></div>
+      <div style="margin-top:34px"><span class="pill a1">A1</span><span class="pill">fiil</span></div>
+      <div class="h" style="font-size:120px;margin-top:20px">give</div>
+      <div style="font:800 54px 'Bricolage Grotesque';color:var(--pri);margin-top:26px">vermek</div>
+      <div style="font:800 48px 'Bricolage Grotesque';margin-top:6px">hediye etmek</div>
+      <div style="margin:36px 40px 0;padding:26px;border-radius:26px;background:#eceee9;font-style:italic;font-size:36px;color:var(--muted)">Give me the book.</div>
+    </div>
+    <div class="btn" style="left:36px;width:230px;background:#fff;border:3px solid var(--bd)">Zaten biliyorum</div>
+    <div class="btn" id="learn" style="left:290px;right:36px;background:var(--pri);color:#fff">Öğrenelim →</div>
+  </div></div>
+  <div class="cap" style="top:1760px" id="s3c">Kaydır, öğren. Görsel, ses, örnek cümle.</div>
+</div>
+<!-- S4 -->
+<div class="scene" id="s4">
+  <div class="abs h center" style="top:150px;font-size:96px;padding:0 60px">Her kelimede<br><span style="color:var(--pri)">4 beceri.</span></div>
+  <div class="skills" style="top:480px" id="skg"></div>
+  <div class="abs" style="left:90px;right:90px;top:1220px;background:#fff;border:3px solid var(--bd);border-radius:44px;padding:44px 40px 40px;box-shadow:0 16px 40px -22px rgba(16,36,30,.25)">
+    <div style="display:flex;justify-content:space-between;font-size:34px;color:var(--muted);font-weight:600"><span>Tekrar aralığı (gün)</span><span id="nx">Sonraki: <b style="color:var(--ink)">yarın</b></span></div>
+    <div style="position:relative;display:grid;grid-template-columns:repeat(5,1fr);margin-top:36px" id="lad"></div>
+  </div>
+  <div class="cap" style="top:1640px">Zayıf olduğun beceri daha sık gelir.</div>
+</div>
+<!-- S5 -->
+<div class="scene" id="s5">
+  <div class="abs h center" style="top:140px;font-size:150px;color:var(--pri)" id="cnt">4.954</div>
+  <div class="abs h center" style="top:330px;font-size:68px;padding:0 60px">kelime · A1’den C1’e</div>
+  <div class="grid" style="top:520px" id="g"></div>
+  <div class="cap" style="top:1620px">Her kelimenin kendine ait görseli var.<br>Çoklu Türkçe karşılık, örnek cümle.</div>
+</div>
+<!-- S6 -->
+<div class="scene" id="s6">
+  <div class="abs brand" style="top:430px;flex-direction:column;gap:40px"><div class="logo" style="width:260px;height:260px;border-radius:66px"><svg viewBox="0 0 24 24" style="width:160px;height:160px"><path d="M12 21v-9"/><path d="M12 13c-4.5 0-6.5-2-6.5-5.5C10 7.5 12 9.500 12 13z"/><path d="M12 11c0-4 2.500-6 6.500-6 0 4-2 6-6.500 6z"/></svg></div>
+    <div class="h" style="font-size:140px;text-align:center">Kelime<br>Bahçesi</div></div>
+  <div class="abs h center" style="top:1130px;font-size:76px;color:var(--muted);font-weight:700;padding:0 80px;line-height:1.15">Günde 5 dakika.<br>Unutmadan öğren.</div>
+  <div class="abs center" style="top:1480px"><span style="display:inline-block;background:var(--pri);color:#fff;font:800 56px 'Bricolage Grotesque';padding:34px 80px;border-radius:44px;box-shadow:0 30px 60px -28px rgba(26,92,79,.7)" id="cta">Bahçeni bugün ek</span></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const ease=x=>1-Math.pow(1-clamp(x),3);
+const back=x=>{x=clamp(x);const c=1.70158;return 1+(c+1)*Math.pow(x-1,3)+c*Math.pow(x-1,2)};
+const win=(t,a,b,fade=.4)=>clamp((t-a)/fade)*clamp((b-t)/fade);
+const STAR='<svg viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>';
+const ICONS={m:'<path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/>',l:'<path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.500 5.500a9 9 0 0 1 0 13"/>',w:'<path d="M4 20h4L19 9a2.800 2.800 0 0 0-4-4L4 16z"/>',s:'<rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>'};
+const SK=[["m","Anlam",3],["l","Dinleme",2],["w","Yazma",2],["s","Konuşma",1]];
+$("skg").innerHTML=SK.map(([k,l])=>`<div class="sk" id="sk_${k}"><div class="ic"><svg viewBox="0 0 24 24">${ICONS[k]}</svg></div><b>${l}</b><div class="stars">${STAR.repeat(3)}</div></div>`).join("");
+$("lad").innerHTML='<div style="position:absolute;left:10%;right:10%;top:20px;height:8px;background:#dde2dc;border-radius:4px"></div><div id="ladf" style="position:absolute;left:10%;top:20px;height:8px;background:#1a5c4f;border-radius:4px;width:0"></div>'+[1,3,7,30,120].map((d,i)=>`<div style="position:relative;text-align:center"><i id="r${i}" style="display:block;width:48px;height:48px;margin:0 auto;border-radius:50%;background:#fff;border:8px solid #dde2dc"></i><b style="display:block;font:800 44px 'Bricolage Grotesque';margin-top:14px;color:var(--muted)" id="rl${i}">${d}</b></div>`).join("");
+const TILES=["apple","cat","rocket","castle","guitar","camera","trophy","tree","bicycle"];
+$("g").innerHTML=TILES.map((n,i)=>`<div class="gt" id="gt${i}"><img src="../../art/${n}.svg"></div>`).join("");
+$("days").innerHTML=[["Gün 1",120],["Gün 3",340],["Gün 7",560],["Gün 30",760]].map(([l])=>`<span style="color:#1a5c4f;font-size:40px">${l}</span>`).join("");
+const dots=[[200,420],[430,460],[760,430]];
+$("dots").innerHTML=dots.map(([x,y],i)=>`<circle id="d${i}" cx="${x}" cy="${y}" r="0" fill="#d9542b"/>`).join("");
+const len=id=>$(id).getTotalLength();
+["c1","c2"].forEach(id=>{$(id).style.strokeDasharray=len(id);});
+function setT(t){
+  // sahne görünürlükleri
+  const S=[[0,3.6],[3.6,8.6],[8.6,14.6],[14.6,20],[20,24.4],[24.4,28]];
+  S.forEach(([a,b],i)=>{const e=$("s"+(i+1));const f=i===0?clamp((b-t)/.4):i===5?clamp((t-a)/.4):win(t,a,b);e.style.opacity=f;e.style.transform=`translateY(${(1-ease((t-a)/.6))*40*(t<b?1:0)}px)`;});
+  // S1
+  $("c1").style.strokeDashoffset=len("c1")*(1-ease((t-1.2)/2));
+  $("s1b").style.opacity=ease((t-1.6)/.5);
+  // S2
+  const u=t-3.6;
+  $("c2").style.strokeDashoffset=len("c2")*(1-clamp((u-.5)/3.4));
+  dots.forEach((_,i)=>{$("d"+i).setAttribute("r",44*back((u-1.2-i*.9)/.5)*(u>1.2+i*.9?1:0))});
+  // S3
+  const v=t-8.6;
+  $("ph").style.transform=`translateY(${(1-ease(v/.8))*260}px)`;
+  const sw=ease((v-3.4)/.7);
+  $("cardA").style.transform=`translateX(${sw*900}px) rotate(${sw*14}deg)`;
+  $("cardA").style.opacity=1-clamp((v-3.9)/.5);
+  $("learn").style.transform=`scale(${1+0.06*Math.sin(clamp((v-2.6)/.8)*Math.PI)})`;
+  // S4
+  const w=t-14.6;
+  SK.forEach(([k,,n],i)=>{const el=$("sk_"+k);const p=back((w-.5-i*.25)/.5);el.style.transform=`scale(${.85+.15*p})`;el.style.opacity=clamp((w-.4-i*.25)/.3);
+    el.querySelectorAll("svg").forEach(()=>{});
+    el.querySelectorAll(".stars svg").forEach((s,j)=>{const on=clamp((w-1.2-i*.25-j*.25)/.2);s.style.fill=on>.5?"#e5a62a":"#dde2dc";s.style.transform=`scale(${1+.35*Math.sin(on*Math.PI)})`;if(j>=n)s.style.fill="#dde2dc";});
+    const ic=el.querySelector(".ic");const d=n>=3;ic.style.background=d?"#2f8a4f":"#dcebe5";ic.style.color=d?"#fff":"#1a5c4f";});
+  const st=clamp((w-3)/2.2)*4;
+  $("ladf").style.width=(st/4*80)+"%";
+  for(let i=0;i<5;i++){const on=st>=i-.001&&w>3;const r=$("r"+i);r.style.background=on?"#1a5c4f":"#fff";r.style.borderColor=on?"#1a5c4f":"#dde2dc";$("rl"+i).style.color=on?"#17231f":"#5b6862";}
+  // S5
+  const x=t-20;
+  $("cnt").textContent=Math.round(4954*ease(x/1.4)).toLocaleString("tr-TR");
+  TILES.forEach((_,i)=>{const p=back((x-.3-i*.1)/.45);const e=$("gt"+i);e.style.transform=`scale(${p})`;e.style.opacity=clamp((x-.3-i*.1)/.2)});
+  // S6
+  const y=t-24.4;
+  $("cta").style.transform=`scale(${1+.05*Math.sin(Math.max(0,y-1)*5)})`;
+}
+window.setT=setT;
+</script>
