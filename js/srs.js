@@ -68,7 +68,7 @@ function growth(c, R, grade) {
  * grade 0: unuttu → kararlılık düşer, ertesi gün yeniden sorulur.
  * grade 1: zorlandı → kararlılık az artar. 2: iyi. 3: kolay.
  */
-export function review(card, grade, today, retention = TARGET_RETENTION) {
+export function review(card, grade, today, retention = TARGET_RETENTION, opts = {}) {
   const c = { ...normalize(card), seen: (card.seen || 0) + 1 };
   const R = c.st ? retrievability(c, today) : 1;
   if (grade >= 1) c.ok = (c.ok || 0) + 1;
@@ -82,7 +82,7 @@ export function review(card, grade, today, retention = TARGET_RETENTION) {
     c.reps = (c.reps || 0) + 1;
     c.st = Math.min(MAX_INTERVAL * 2, Math.max(c.st, 0.8) * (1 + growth({ ...c, st: Math.max(c.st, 0.8) }, R, grade)));
   }
-  c.iv = intervalFor(c.st, retention);
+  c.iv = scheduleInterval(c.st, retention, opts);
   if (grade === 0) c.iv = 1;
   c.s = 2;
   c.last = today;
@@ -91,14 +91,44 @@ export function review(card, grade, today, retention = TARGET_RETENTION) {
 }
 
 /**
+ * Aralık: hedef hatırlama olasılığından (kişisel `gain` ile ölçeklenmiş) hesaplanır; ≥ 5 günlük aralıklara
+ * ±%5 sabit "titreşim" (fuzz) uygulanır ki aynı gün öğrenilen kelimeler hep aynı gün birikmesin.
+ */
+export function scheduleInterval(st, retention, { gain = 1, key = "", day = 0 } = {}) {
+  const base = intervalFor(st, retention) * clamp(gain, 0.6, 1.6);
+  let iv = Math.round(base);
+  if (iv >= 5 && key) {
+    const j = ((hashKey(key + ":" + day) % 1000) / 1000) * 0.1 - 0.05;
+    iv = Math.round(base * (1 + j));
+  }
+  return clamp(iv, 1, MAX_INTERVAL);
+}
+
+/**
+ * Kişisel uyarlama: gerçekte hatırlama oranı, modelin tahmin ettiğinden düşükse aralıklar kısalır, yüksekse uzar.
+ * `cal` = {n, ok, exp, g}: son tekrarların sayısı, doğru sayısı, beklenen hatırlama toplamı, çarpan.
+ * Her 25 tekrarda bir, çarpan sınırlı adımlarla (±%12) güncellenir.
+ */
+export function calibrate(cal, { correct, expected }) {
+  const c = { n: 0, ok: 0, exp: 0, g: 1, ...(cal || {}) };
+  c.n++; c.exp += expected; if (correct) c.ok++;
+  if (c.n >= 25) {
+    const obs = c.ok / c.n, exp = c.exp / c.n;
+    c.g = clamp(c.g * clamp(1 + (obs - exp) * 1.2, 0.88, 1.12), 0.6, 1.6);
+    c.n = 0; c.ok = 0; c.exp = 0;
+  }
+  return c;
+}
+
+/**
  * Yeni kelime oturum içinde yeterince doğru yapıldığında tekrar aşamasına geçer.
  * İlk tekrar ertesi gün: uykudan sonra yapılan ilk çağırma, kalıcılaşmayı en çok destekleyen adımdır.
  */
-export function graduate(card, mistakes, today, retention = TARGET_RETENTION) {
+export function graduate(card, mistakes, today, retention = TARGET_RETENTION, opts = {}) {
   const c = { ...normalize(card), s: 2, last: today, reps: 1 };
   c.st = mistakes === 0 ? 1.2 : mistakes === 1 ? 0.9 : 0.7;
   c.d = clamp(5 + mistakes * 0.8, 1, 10);
-  c.iv = Math.max(1, intervalFor(c.st, retention));
+  c.iv = Math.max(1, scheduleInterval(c.st, retention, opts));
   c.due = today + c.iv;
   return c;
 }
@@ -204,4 +234,51 @@ export function hashKey(str, seed = 0) {
     h = Math.imul(h, 16777619);
   }
   return h >>> 0;
+}
+
+// —— Beceriler ————————————————————————————————————————————————
+// Bir kelimeyi "bilmek" tek şey değildir: anlamını tanımak, duyunca anlamak, yazabilmek ve söyleyebilmek ayrı
+// becerilerdir (üretim, tanımadan zordur). Her alıştırma türü bir beceriyi besler; kart, becerilerin
+// her birinde kaç başarılı çağırma yaptığını tutar (card.sk) ve zayıf beceri daha sık çalıştırılır.
+export const SKILLS = [
+  { id: "m", label: "Anlam", hint: "Anlamını tanıma" },
+  { id: "l", label: "Dinleme", hint: "Duyunca anlama" },
+  { id: "w", label: "Yazma", hint: "Yazarak hatırlama" },
+  { id: "s", label: "Konuşma", hint: "Yüksek sesle söyleme" },
+];
+const SKILL_OF = {
+  mcq_en_tr: "m", mcq_tr_en: "m", emoji_mcq: "m", cloze: "m",
+  listen_mcq: "l", listen_emoji: "l", dictation: "w", type_en: "w", speak: "s",
+};
+/** Alıştırma türünün beslediği beceri ("cloze" yazılıysa yazma). */
+export function skillOf(type, mode) {
+  if (type === "cloze" && mode === "type") return "w";
+  return SKILL_OF[type] || "m";
+}
+/** Başarılı çağırma sayısından 0–3 yıldız: 1 → ★, 3 → ★★, 5 → ★★★. */
+export function skillStars(n) {
+  return n >= 5 ? 3 : n >= 3 ? 2 : n >= 1 ? 1 : 0;
+}
+/** Bir başarılı çağırmayı beceriye işler (yeni kart nesnesi). */
+export function creditSkill(card, skill) {
+  const sk = { m: 0, l: 0, w: 0, s: 0, ...(card.sk || {}) };
+  sk[skill] = (sk[skill] || 0) + 1;
+  return { ...card, sk };
+}
+/** Kullanılabilir beceriler arasında en zayıfı (eşitlikte rastgele ilk); yoksa null. */
+export function weakestSkill(card, available) {
+  if (!card || !available.length) return null;
+  const sk = card.sk || {};
+  return [...available].sort((a, b) => (sk[a] || 0) - (sk[b] || 0))[0];
+}
+
+/** Kelimenin tekrar merdiveni: [1,3,7,30,120] gün basamakları ve kartın şu anki basamağı (0–5). */
+export const LADDER = [1, 3, 7, 30, 120];
+export function ladderStep(card) {
+  const c = normalize(card);
+  if (!c || c.s === 1 || !c.st) return 0;
+  const iv = c.iv || 0;
+  let n = 0;
+  for (const d of LADDER) if (iv >= d) n++;
+  return n;
 }

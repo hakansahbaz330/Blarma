@@ -2,10 +2,10 @@
 import { ctx } from "./ctx.js";
 import { createStore } from "./store.js";
 import { toWordObjects, buildIndex, posLabel, shortMeaning, clozeParts } from "./exercises.js";
-import { LEVELS, STAGES, dueWords, isLeech, isLasting, forecast, newProgress, memoryStrength, stageIndex, retrievability } from "./srs.js";
+import { LEVELS, STAGES, SKILLS, skillStars, dueWords, isLeech, isLasting, forecast, newProgress, memoryStrength, stageIndex, retrievability } from "./srs.js";
 import { dayNumber, escapeHtml as h, foldTurkish, shuffle } from "./util.js";
 import { icons, plants, brandMark } from "./icons.js";
-import { englishVoices, caps as speechCaps } from "./speech.js";
+import { voicesFor, voiceInfo, bestQuality, QUALITY_LABEL, speakTr, caps as speechCaps } from "./speech.js";
 import { startSession, startPlacement, say } from "./sessionui.js";
 import { planNew } from "./session.js";
 import { startSlideshow } from "./slideshow.js";
@@ -15,6 +15,8 @@ import { storiesView, storyOfTheDay, storyReadToday, openReader } from "./storie
 import { DEFAULT_MODEL } from "./stories.js";
 import { tileHtml, hasEmoji, hasArt, fieldChip } from "./visuals.js";
 import { hashKey } from "./srs.js";
+import { reminderIcs } from "./feedback.js";
+import { skillGridHtml, ladderHtml, starsHtml } from "./skills.js";
 
 const store = createStore();
 ctx.store = store;
@@ -31,7 +33,7 @@ const $app = document.getElementById("app");
 const $nav = document.getElementById("nav");
 const $toast = document.getElementById("toast");
 
-const ROUTES = ["learn", "practice", "stories", "progress", "words", "settings"];
+const ROUTES = ["learn", "practice", "stories", "progress", "words", "settings", "today"];
 let route = "learn";
 let prevRoute = "learn";
 const wordsState = { q: "", level: "all", status: "all", limit: 60 };
@@ -339,6 +341,7 @@ function progressView() {
       ${dueSoon ? `<button class="btn primary block" data-a="task-review">Şimdi tekrar et (${dueSoon})</button>` : ""}
     </section>
     <section class="card list-card" style="margin-top:12px">
+      <button class="stat-row-item" data-a="go-today"><span class="grow">Günlük ilerleme · bugün çalıştıkların</span>${icons.chevronRight}</button>
       ${row("Öğrendiğim kelimeler", c.learning + c.review, "learning")}
       ${row("Zor kelimeler", c.leech, "leech")}
       ${row("Bildiğim kelimeler", c.known, "known")}
@@ -382,6 +385,43 @@ function filteredWords() {
     }
     return true;
   });
+}
+
+let installEvt = null;
+window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e; if (route === "settings") render(); });
+const todayOpen = new Set();
+/** Aksan seçimine uyan sesler öne gelir; diğer İngilizce sesler de listede kalır. */
+const voiceNameOk = () => true;
+
+/** Günlük ilerleme: bugün çalışılan kelimeler; satır açılınca anlam, beceri yıldızları ve tekrar merdiveni. */
+function todayView() {
+  const st = store.state, today = dayNumber();
+  const learned = [], reviewed = [];
+  for (const [word, c] of Object.entries(st.prog)) {
+    const w = ctx.index.byWord.get(word);
+    if (!w || c.s === 3 || c.last !== today) continue;
+    ((c.reps || 0) <= 1 && c.seen <= 3 ? learned : reviewed).push({ w, c });
+  }
+  const ds = store.dayStats(today);
+  const row = ({ w, c }) => {
+    const sk = c.sk || {};
+    const total = SKILLS.reduce((a, k) => a + skillStars(sk[k.id] || 0), 0);
+    const open = todayOpen.has(w.word);
+    return `<div class="td-row${open ? " open" : ""}">
+      <button class="td-head" data-a="today-toggle" data-w="${h(w.word)}" aria-expanded="${open}">
+        <span class="chev">${icons.chevronRight}</span><span class="td-w" lang="en">${h(w.word)}</span>
+        <span class="td-sum muted">${h(shortMeaning(w, 1))}</span>${starsHtml(Math.round(total / 4))}
+      </button>
+      ${open ? `<div class="td-body"><div class="td-tr">${h(w.tr.join(" · "))}</div>${skillGridHtml(c)}${ladderHtml(c, today)}
+        <button class="btn soft sm" data-a="w-open" data-w="${h(w.word)}">Kelime kartı</button></div>` : ""}
+    </div>`;
+  };
+  const sec = (title, list) => list.length ? `<h2 class="sec">${title} · ${list.length}</h2><section class="card list-card td-list">${list.map(row).join("")}</section>` : "";
+  return `
+    <div class="page-head"><button class="icon-btn" data-a="back-progress" aria-label="Geri">${icons.chevronLeft}</button><h1 class="grow">Günlük ilerleme</h1></div>
+    <section class="card plan" style="margin-bottom:6px"><p style="margin:0;font-size:17px">${learned.length ? `Bugün <b>${learned.length}</b> yeni kelime öğrendin${reviewed.length ? ` ve <b>${reviewed.length}</b> kelimeyi tekrar ettin` : ""}.` : reviewed.length ? `Bugün <b>${reviewed.length}</b> kelimeyi tekrar ettin.` : "Bugün henüz çalışmadın."}</p>
+      <p class="muted" style="margin:0">${ds.q ? `${ds.q} soru · %${Math.round((100 * ds.ok) / ds.q)} doğru` : "Bir oturum başlatınca kelimeler burada görünür."} Yıldızlar: anlam, dinleme, yazma, konuşma becerilerin.</p></section>
+    ${sec("Yeni öğrendiklerin", learned)}${sec("Tekrar ettiklerin", reviewed)}`;
 }
 
 function wordsView() {
@@ -434,6 +474,7 @@ function openWord(word) {
       <ul style="list-style:none;padding:0;margin:0;font-size:22px;font-weight:700">${w.tr.map((m) => `<li>${h(m)}</li>`).join("")}</ul>
       ${w.example ? `<div class="card" lang="en"><i>${h(w.example)}</i> <button class="icon-btn" data-a="say" data-t="${h(w.example)}" aria-label="Cümleyi dinle">${icons.speaker}</button>${w.exampleTr ? `<div class="muted" style="margin-top:4px" lang="tr">${h(w.exampleTr)}</div>` : ""}</div>` : ""}
       <p class="memline muted">${si >= 0 ? `<span class="memplant">${plants[si](30)}</span>` : ""}<span>${memLine}${c && c.lapses ? ` · ${c.lapses} kez unutuldu` : ""}</span></p>
+      ${c && c.s !== 3 && s ? `<div class="card-block">${ladderHtml(c, today)}${skillGridHtml(c)}</div>` : ""}
       ${isLeech(c) ? `<p class="plan-note" style="text-align:left">Bu kelime seni zorluyor. Aşağıya kendine ait bir hatırlatıcı yaz: bir resim, bir benzetme ya da kendi cümlen. Kişisel bağlar, kelimeyi daha iyi tutar.</p>` : ""}
       <div class="field" style="text-align:left"><label for="w-note">Kendi hatırlatıcın</label>
         <textarea id="w-note" data-word="${h(word)}" rows="2" maxlength="200" placeholder="Bu kelimeyi sana ne hatırlatıyor? (örn: kendi cümlen, benzer bir Türkçe ses)">${h(note)}</textarea></div>
@@ -482,7 +523,7 @@ function addWordModal() {
 function settingsView() {
   const s = store.state.settings;
   const seg = (key, vals) => `<div class="seg" role="group">${vals.map(([v, l]) => `<button data-a="set" data-k="${key}" data-v="${v}" aria-pressed="${String(s[key]) === String(v)}">${l}</button>`).join("")}</div>`;
-  const voices = englishVoices();
+  const voices = voicesFor("en"), trVoices = voicesFor("tr"), q = bestQuality("en");
   return `
     <div class="page-head"><button class="icon-btn" data-a="back" aria-label="Geri">${icons.chevronLeft}</button><h1 class="grow">Ayarlar</h1></div>
     <div class="stack">
@@ -500,8 +541,16 @@ function settingsView() {
         <div class="field"><label>Okuma hızı</label>${seg("rate", [[0.7, "Yavaş"], [0.9, "Normal"], [1.1, "Hızlı"]])}</div>
         <div class="field"><label>Yazma alıştırmaları</label>${seg("writeMode", [["tiles", "Harf kutuları"], ["keyboard", "Klavye"]])}</div>
         <div class="field"><label>Slayt gösterisi hızı</label>${seg("slideSeconds", [[4, "Hızlı"], [6, "Normal"], [9, "Yavaş"]])}</div>
-        ${voices.length ? `<div class="field"><label for="voice">Ses</label><select id="voice" data-a-change="voice"><option value="">Otomatik</option>${voices.map((v) => `<option value="${h(v.voiceURI)}" ${s.voice === v.voiceURI ? "selected" : ""}>${h(v.name)} (${h(v.lang)})</option>`).join("")}</select></div>` : `<p class="muted">Bu cihazda sesli okuma bulunamadı; dinleme/telaffuz özellikleri kapalı.</p>`}
-        <button class="btn sm" data-a="say" data-t="Hello! Let's learn some new words today.">${icons.speaker} Sesi dene</button>
+        ${voices.length ? `<div class="field"><label for="voice">İngilizce ses</label><select id="voice" data-a-change="voice"><option value="">Otomatik (en iyi ses)</option>${voices.filter((x) => voiceNameOk(x.v, s.accent)).map((x) => `<option value="${h(x.v.voiceURI)}" ${s.voice === x.v.voiceURI ? "selected" : ""}>${h(x.v.name)} · ${h(x.v.lang)} · ${QUALITY_LABEL[x.quality]}</option>`).join("")}</select></div>` : `<p class="plan-note">Bu cihazda İngilizce ses bulunamadı. Aşağıdaki ipuçlarına bak.</p>`}
+        ${trVoices.length ? `<div class="field"><label for="trvoice">Türkçe ses (anlamları okumak için)</label><select id="trvoice" data-a-change="trvoice"><option value="">Otomatik</option>${trVoices.map((x) => `<option value="${h(x.v.voiceURI)}" ${s.trVoice === x.v.voiceURI ? "selected" : ""}>${h(x.v.name)} · ${QUALITY_LABEL[x.quality]}</option>`).join("")}</select></div>` : ""}
+        <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm" data-a="say" data-t="Hello! Let's learn some new words today.">${icons.speaker} İngilizce dene</button><button class="btn sm" data-a="say-tr" data-t="Merhaba! Bugün yeni kelimeler öğrenelim.">${icons.speaker} Türkçe dene</button></div>
+        ${q && q !== "high" || !q ? `<div class="voice-tip"><b>Daha doğal bir ses için</b>
+          <ul><li><b>iPhone/iPad:</b> Ayarlar → Erişilebilirlik → Konuşulan İçerik → Sesler → English → “Premium” ya da “Gelişmiş” bir ses indir (örn. Ava, Samantha, Daniel).</li>
+          <li><b>Android:</b> Ayarlar → Genel yönetim → Dil → Metin okuma çıkışı → Google → ses verisini yükle ve yüksek kaliteli sesi seç.</li>
+          <li><b>Bilgisayar:</b> Microsoft Edge “Natural” seslerini, Chrome ise “Google” seslerini sunar; bu seslerin en doğalı otomatik seçilir.</li></ul>
+          <span class="muted">Sesler cihazına aittir; uygulama bulabildiği en iyi sesi seçer.</span></div>` : `<p class="muted" style="font-size:13px;margin:0">Cihazında doğal kalitede bir ses bulundu ve otomatik seçildi.</p>`}
+        <label class="switch"><span>Titreşim <small class="muted">(doğru/yanlışta)</small></span><input type="checkbox" data-a-change="haptics" ${s.haptics ? "checked" : ""}></label>
+        <label class="switch"><span>Ses efektleri</span><input type="checkbox" data-a-change="sfx" ${s.sfx ? "checked" : ""}></label>
         <label class="switch"><span>Sesi otomatik çal</span><input type="checkbox" data-a-change="autoplay" ${s.autoplay ? "checked" : ""}></label>
         <label class="switch"><span>Konuşma alıştırmaları ${speechCaps.speaking ? "" : "<small class='muted'>(bu tarayıcıda desteklenmiyor)</small>"}</span><input type="checkbox" data-a-change="speaking" ${s.speaking && speechCaps.speaking ? "checked" : ""} ${speechCaps.speaking ? "" : "disabled"}></label>
       </section>
@@ -514,6 +563,14 @@ function settingsView() {
         <p class="muted" style="font-size:14px">Kendi Anthropic API anahtarını girersen öğrendiğin kelimelerle hikâye üretilir. Anahtar yalnızca bu tarayıcıda saklanır ve doğrudan Anthropic'e gönderilir; sunucumuz yoktur.</p>
         <div class="field"><label for="apikey">API anahtarı</label><input id="apikey" type="password" autocomplete="off" placeholder="sk-ant-…" value="${h(s.apiKey || "")}" data-a-change="apikey"></div>
         <div class="field"><label for="model">Model</label><input id="model" value="${h(s.model || DEFAULT_MODEL)}" data-a-change="model"></div>
+      </section>
+      <section class="card stack">
+        <h3>Hatırlatıcı ve kurulum</h3>
+        <p class="muted" style="font-size:14px">Aralıklı tekrar, zamanında yapılınca işe yarar. Takvimine her gün tekrar eden bir hatırlatıcı ekle (sunucu ve bildirim izni gerekmez).</p>
+        <div class="field"><label>Hatırlatma saati</label>${seg("reminderHour", [[8, "08:00"], [13, "13:00"], [20, "20:00"], [22, "22:00"]])}</div>
+        <button class="btn" data-a="reminder">Takvime ekle (.ics)</button>
+        <button class="btn" data-a="install" id="btn-install" ${installEvt ? "" : "hidden"}>Ana ekrana ekle</button>
+        <p class="muted" style="font-size:13px;margin:0">iPhone: Safari’de Paylaş → “Ana Ekrana Ekle”. Android/Chrome: menü → “Uygulamayı yükle”.</p>
       </section>
       <section class="card stack">
         <h3>Verilerin</h3>
@@ -538,11 +595,11 @@ const NAV = [
   ["stories", "Hikâyeler", icons.bookOpen],
   ["progress", "Bahçem", icons.sprout],
 ];
-const NAV_OF = { words: "progress", settings: "learn" };
+const NAV_OF = { words: "progress", settings: "learn", today: "progress" };
 
 function render() {
   applyTheme();
-  const views = { learn: learnView, practice: practiceView, stories: storiesView, progress: progressView, words: wordsView, settings: settingsView };
+  const views = { learn: learnView, practice: practiceView, stories: storiesView, progress: progressView, words: wordsView, settings: settingsView, today: todayView };
   const prevQ = document.getElementById("q");
   const hadFocus = prevQ && document.activeElement === prevQ;
   const caret = hadFocus ? prevQ.selectionStart : 0;
@@ -569,6 +626,17 @@ Object.assign(ctx.actions, {
   how: () => howItWorksModal(),
   back: () => go(prevRoute === "settings" ? "learn" : prevRoute),
   "back-progress": () => go("progress"),
+  "go-today": () => go("today"),
+  reminder: () => {
+    const blob = new Blob([reminderIcs(store.state.settings.reminderHour || 20)], { type: "text/calendar" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = "kelime-bahcesi-hatirlatici.ics";
+    document.body.appendChild(a); a.click(); a.remove();
+    ctx.toast("Takvim dosyası indirildi; açıp takvimine ekle.");
+  },
+  install: async () => { if (!installEvt) return; installEvt.prompt(); try { await installEvt.userChoice; } catch { /* yok say */ } installEvt = null; render(); },
+  "say-tr": (el) => speakTr(el.dataset.t, { trVoiceURI: store.state.settings.trVoice }),
+  "today-toggle": (el) => { const k = el.dataset.w; todayOpen.has(k) ? todayOpen.delete(k) : todayOpen.add(k); render(); },
   say: (el) => say(el.dataset.t),
   lang: () => ctx.toast("Şimdilik İngilizce ↔ Türkçe. Yeni diller yolda."),
   "close-modal": () => closeModal(),
@@ -612,7 +680,7 @@ Object.assign(ctx.actions, {
   set: (el) => {
     const k = el.dataset.k;
     let v = el.dataset.v;
-    if (["goal", "rate", "maxReviews", "slideSeconds", "practiceCount", "retention"].includes(k)) v = Number(v);
+    if (["goal", "rate", "maxReviews", "slideSeconds", "practiceCount", "retention", "reminderHour"].includes(k)) v = Number(v);
     store.state.settings[k] = v;
     store.save();
     render();
@@ -658,9 +726,12 @@ document.addEventListener("change", (e) => {
   const s = store.state.settings;
   switch (el.dataset.aChange) {
     case "voice": s.voice = el.value; break;
+    case "trvoice": s.trVoice = el.value; break;
     case "apikey": s.apiKey = el.value.trim(); break;
     case "model": s.model = el.value.trim() || DEFAULT_MODEL; break;
     case "autoplay": s.autoplay = el.checked; break;
+    case "haptics": s.haptics = el.checked; break;
+    case "sfx": s.sfx = el.checked; break;
     case "speaking": s.speaking = el.checked; break;
     case "import": {
       const f = el.files[0];

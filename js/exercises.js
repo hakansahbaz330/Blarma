@@ -2,6 +2,7 @@
 import { shuffle, pick, normalizeAnswer, levenshtein, escapeRegExp } from "./util.js";
 import { LEVELS } from "./srs.js";
 import { visualKey, hasEmoji, hasArt } from "./visuals.js";
+import { skillOf, weakestSkill } from "./srs.js";
 
 export const POS_TR = {
   n: "isim", v: "fiil", adj: "sıfat", adv: "zarf", prep: "edat", conj: "bağlaç", pron: "zamir",
@@ -150,6 +151,13 @@ export function pickType(card, w, caps, lastType, rng = Math.random) {
     return true;
   });
   if (!pool.length) pool = ["mcq_en_tr"];
+  // Zayıf beceriyi öne al: kartın en az beslenen becerisine ait türler (olasılıkla; çeşitlilik de kalsın).
+  if (card && reps >= 1 && rng() < 0.65) {
+    const skills = [...new Set(pool.map((t) => skillOf(t)))];
+    const weak = weakestSkill(card, skills);
+    const sub = pool.filter((t) => skillOf(t) === weak);
+    if (weak && sub.length && (card.sk ? (card.sk[weak] || 0) : 0) < 5) pool = sub;
+  }
   const alt = pool.filter((t) => t !== lastType);
   return pick(alt.length ? alt : pool, rng);
 }

@@ -3,7 +3,8 @@ import { ctx } from "./ctx.js";
 import { createSession } from "./session.js";
 import { makeExercise, checkTyped, posLabel, shortMeaning } from "./exercises.js";
 import { LEVELS, LEVEL_LABELS, forecast } from "./srs.js";
-import { speak, stopSpeaking, listenOnce, caps as speechCaps } from "./speech.js";
+import { feel } from "./feedback.js";
+import { speak, speakTr, stopSpeaking, listenOnce, caps as speechCaps } from "./speech.js";
 import { icons, plants } from "./icons.js";
 import { tileHtml, visualKey, shownKey, renderVisual, fieldChip } from "./visuals.js";
 import { escapeHtml as h, dayNumber, shuffle } from "./util.js";
@@ -18,7 +19,8 @@ const sayOpts = () => {
   return { accent: s.accent, rate: s.rate, voiceURI: s.voice };
 };
 export const say = (text) => speak(text, sayOpts());
-const saySlow = (text) => speak(text, { ...sayOpts(), rate: 0.5 });
+const saySlow = (text) => speak(text, { ...sayOpts(), rate: 0.6 });
+const sayTr = (text) => speakTr(text, { trVoiceURI: ctx.store.state.settings.trVoice });
 
 function closeAll() {
   stopSpeaking();
@@ -246,17 +248,19 @@ function feedbackHtml(ok, close, w, extra = "") {
       ${extra}
       <div class="tools">
         <button class="btn sm" data-a="s:say" data-t="${h(w.word)}">${icons.speaker} Dinle</button>
+        <button class="btn sm" data-a="s:saytr" data-t="${h(w.tr[0])}">${icons.speaker} Türkçesi</button>
         <button class="btn sm ghost" data-a="s:skipknown">Bu kelimeyi biliyorum</button>
         <button class="btn sm ghost" data-a="s:flag" data-w="${h(w.word)}">${icons.flag} Çeviri hatalı</button>
       </div>
     </div>`;
 }
 
-function finishAnswer({ correct, close = false }) {
+function finishAnswer({ correct, close = false, answer = "" }) {
   const t = currentTask();
   const w = wordOf(t);
-  const res = S.submit({ correct, close, hinted: ui.hinted, ms: ui.t0 ? Math.round(performance.now() - ui.t0) : null });
+  const res = S.submit({ correct, close, answer, hinted: ui.hinted, ms: ui.t0 ? Math.round(performance.now() - ui.t0) : null });
   ui.answered = true;
+  feel(correct ? "ok" : "bad", ctx.store.state.settings);
   ui.lastWord = w.word;
   ui.xp += res ? res.xp : 0;
   setProgress(S.progress(), S.summary().xp);
@@ -275,7 +279,7 @@ function onOption(i) {
   const ex = t.ex;
   const idx = ex.options.findIndex((o) => o.correct);
   lockOptions(idx, i);
-  finishAnswer({ correct: ex.options[i].correct });
+  finishAnswer({ correct: ex.options[i].correct, answer: ex.options[i].label });
 }
 
 function useTiles(ex) {
@@ -349,7 +353,7 @@ function onCheck() {
     const r = checkTyped(ex.answer, T.slots.join(""));
     T.state = r.ok ? "ok" : "bad";
     drawTiles();
-    finishAnswer({ correct: r.ok, close: r.close });
+    finishAnswer({ correct: r.ok, close: r.close, answer: T.slots.join("") });
     return;
   }
   const input = document.getElementById("ans");
@@ -357,7 +361,7 @@ function onCheck() {
   if (!input.value.trim()) { input.focus(); return; }
   input.classList.add(r.ok ? "ok" : "bad");
   input.disabled = true;
-  finishAnswer({ correct: r.ok, close: r.close });
+  finishAnswer({ correct: r.ok, close: r.close, answer: input.value.trim() });
 }
 
 function onIdk() {
@@ -387,7 +391,7 @@ async function onMic() {
     const ok = alts.map((a) => checkTyped(t.ex.answer, a)).find((r) => r.ok);
     if (alts.length === 0) { msg.textContent = "Ses algılanmadı. Tekrar dene."; return; }
     msg.textContent = `Duyduğum: “${alts[0]}”`;
-    finishAnswer({ correct: !!ok, close: !!(ok && ok.close) });
+    finishAnswer({ correct: !!ok, close: !!(ok && ok.close), answer: alts[0] });
   } catch {
     msg.textContent = "Mikrofon kullanılamadı. Aşağıdan geçebilirsin.";
   } finally {
@@ -401,27 +405,51 @@ function next2() { if (!S) return; next(); }
 function finish() {
   const sum = S.summary();
   const learned = sum.learned.map((w) => ctx.index.byWord.get(w)).filter(Boolean);
-  const missed = sum.missed.map((w) => ctx.index.byWord.get(w)).filter(Boolean);
   const pct = Math.round(sum.accuracy * 100);
   const tomorrow = forecast(ctx.store.state.prog, dayNumber(), 2)[1];
+  // Kelime başına son durum: o kelimede hiç yanlış yaptıysa "yanlış".
+  const per = new Map();
+  for (const it of sum.items) {
+    const e = per.get(it.word) || { word: it.word, wrong: 0, right: 0, answer: "" };
+    if (it.correct) e.right++; else { e.wrong++; if (!e.answer && it.answer) e.answer = it.answer; }
+    per.set(it.word, e);
+  }
+  const rows = [...per.values()].map((e) => ({ ...e, w: ctx.index.byWord.get(e.word) })).filter((e) => e.w)
+    .sort((a, b) => (b.wrong > 0) - (a.wrong > 0));
+  const right = rows.filter((e) => !e.wrong).length, wrong = rows.length - right;
+  const showAns = (a) => a && !/^art:/.test(a) && /\p{L}/u.test(a);
   setProgress(1, sum.xp);
   body().innerHTML = `
     <div class="summary stack">
-      <div class="trophy" aria-hidden="true">${plants[learned.length ? 1 : 2](72)}</div>
-      <h1>Oturum tamam!</h1>
-      <p class="muted">${sum.answers ? `${sum.answers} soru · %${pct} doğru` : "Bu oturumda soru çözmedin."}</p>
+      <div class="result-hero">
+        <div class="ring2 big" style="--p:${pct}"><div><b>%${pct}</b><small>başarı</small></div></div>
+        <h1>${pct >= 85 ? "Harika bir oturum!" : pct >= 60 ? "İyi gidiyorsun!" : "Zorlandın, ama öğrenmenin yolu bu"}</h1>
+        <p class="muted">${sum.answers ? `${sum.answers} soru` : "Bu oturumda soru çözmedin."}</p>
+      </div>
       <div class="stat-row">
-        <div class="stat"><b>${learned.length}</b><span>yeni kelime</span></div>
-        <div class="stat"><b>${sum.reviewed}</b><span>tekrar</span></div>
+        <div class="stat good"><b>${right}</b><span>doğru kelime</span></div>
+        <div class="stat bad"><b>${wrong}</b><span>yanlış kelime</span></div>
         <div class="stat"><b>+${sum.xp}</b><span>XP</span></div>
       </div>
-      ${learned.length ? `<p class="plan-note" style="text-align:left">Yeni kelimelerin <b>yarın</b> seni bekliyor${tomorrow ? ` (toplam ${tomorrow} tekrar)` : ""}. İlk tekrarı uykudan sonra yapmak, kelimeleri kalıcı hafızaya yerleştirir.</p>` : ""}
-      ${learned.length ? `<div><h2 class="sec">Bugün öğrendiklerin</h2><div class="pill-list">${learned.map((w) => `<span class="pill"><b lang="en">${h(w.word)}</b>${h(shortMeaning(w, 1))}</span>`).join("")}</div></div>` : ""}
-      ${missed.length ? `<div><h2 class="sec">Zorlandıkların (yakında tekrar edilecek)</h2><div class="pill-list">${missed.map((w) => `<span class="pill"><b lang="en">${h(w.word)}</b>${h(shortMeaning(w, 1))}</span>`).join("")}</div></div>` : ""}
+      ${learned.length ? `<p class="plan-note" style="text-align:left">${learned.length} yeni kelime öğrendin. Yeni kelimelerin <b>yarın</b> seni bekliyor${tomorrow ? ` (toplam ${tomorrow} tekrar)` : ""}. İlk tekrarı uykudan sonra yapmak, kelimeleri kalıcı hafızaya taşır.</p>` : ""}
+      ${rows.length ? `<div class="stack" style="text-align:left"><h2 class="sec">Kelime kelime geri bildirim</h2>
+        <div class="fb-list">${rows.map((e) => `
+          <div class="fb-row ${e.wrong ? "bad" : "ok"}">
+            <span class="fb-mark" aria-label="${e.wrong ? "yanlış" : "doğru"}">${e.wrong ? icons.x : icons.check}</span>
+            <div class="fb-body">
+              <div class="fb-w"><b lang="en">${h(e.w.word)}</b><button class="icon-btn sm" data-a="s:say" data-t="${h(e.w.word)}" aria-label="Dinle">${icons.speaker}</button></div>
+              <div class="fb-tr">${h(shortMeaning(e.w, 3))}</div>
+              ${e.wrong && showAns(e.answer) ? `<span class="your-ans">Senin cevabın: <b>${h(e.answer)}</b></span>` : ""}
+              ${e.w.example ? `<div class="fb-ex" lang="en">${h(e.w.example)}</div>` : ""}
+            </div>
+          </div>`).join("")}</div></div>` : ""}
     </div>`;
-  foot().innerHTML = `<button class="btn primary block" data-a="s:done">Tamam</button>`;
-  if (learned.length || sum.reviewed >= 5) confetti();
+  foot().innerHTML = `${wrong ? `<button class="btn soft block" data-a="s:redo">Yanlışlarımı şimdi tekrar et</button>` : ""}<button class="btn primary block" data-a="s:done">Çalışmayı bitir</button>`;
+  lastWrong = rows.filter((e) => e.wrong).map((e) => e.word);
+  const bd = body(); if (bd && bd.scrollTo) bd.scrollTo(0, 0);
+  if (learned.length || sum.reviewed >= 5) { confetti(); feel("done", ctx.store.state.settings); }
 }
+let lastWrong = [];
 
 function confetti() {
   const box = document.createElement("div");
@@ -475,6 +503,7 @@ function onKey(e) {
 Object.assign(ctx.actions, {
   "s:say": (el) => say(el.dataset.t),
   "s:slow": (el) => saySlow(el.dataset.t),
+  "s:saytr": (el) => sayTr(el.dataset.t),
   "s:extr": (el) => {
     const p = document.getElementById("extr");
     if (!p) return;
@@ -504,6 +533,7 @@ Object.assign(ctx.actions, {
   "s:skipspeak": () => { if (!ui.answered) { ui.hinted = true; finishAnswer({ correct: true }); } },
   "s:next": () => next2(),
   "s:done": () => closeAll(),
+  "s:redo": () => { const w = lastWrong.slice(); closeAll(); setTimeout(() => startSession({ mode: "practice", words: w, title: "Yanlışlarım" }), 50); },
   "s:skipknown": () => {
     if (!S || !ui || !ui.lastWord) return;
     S.markKnown(ui.lastWord);

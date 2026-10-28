@@ -11,7 +11,7 @@ export const caps = {
 let voicesCache = [];
 function loadVoices() {
   if (!synth) return [];
-  voicesCache = synth.getVoices().filter((v) => /^en[-_]/i.test(v.lang));
+  voicesCache = synth.getVoices();
   return voicesCache;
 }
 if (synth) {
@@ -19,34 +19,75 @@ if (synth) {
   synth.addEventListener && synth.addEventListener("voiceschanged", loadVoices);
 }
 
-export function englishVoices() {
-  return voicesCache.length ? voicesCache : loadVoices();
+const allVoices = () => (voicesCache.length ? voicesCache : loadVoices());
+const norm = (l) => String(l || "").replace("_", "-").toLowerCase();
+
+/**
+ * Ses kalitesi tahmini: tarayıcılar kalite bilgisi vermez, bu yüzden adından çıkarırız.
+ * "Doğal/sinirsel" sesler (Edge Natural, Google çevrimiçi, Apple Premium/Enhanced) robot sesinden belirgin biçimde
+ * daha insansıdır; "compact/espeak" gibi küçük sesler en zayıflarıdır.
+ */
+export function voiceInfo(v) {
+  const n = v.name || "";
+  let score = 0;
+  if (/natural|neural|online|premium|enhanced|studio|wavenet/i.test(n)) score += 6;
+  if (/google/i.test(n)) score += 4;
+  if (/samantha|ava\b|allison|susan|zoe|serena|daniel|oliver|karen|moira|tessa|kate|arthur|martha|aria|jenny|guy|sonia|ryan|libby|emel|yelda|filiz/i.test(n)) score += 3;
+  if (v.localService === false) score += 2;
+  if (/compact|espeak|festival|flite|fred|albert|bahh|bells|boing|bubbles|cellos|deranged|hysterical|jester|organ|trinoids|whisper|zarvox|novelty|junior/i.test(n)) score -= 8;
+  return { score, quality: score >= 6 ? "high" : score >= 2 ? "std" : "low" };
+}
+export const QUALITY_LABEL = { high: "Doğal", std: "Standart", low: "Robotik" };
+
+/** Bir dil için sesler, en iyi kaliteden başlayarak (lang: "en" ya da "tr"). */
+export function voicesFor(lang) {
+  const re = new RegExp("^" + lang + "(-|$)", "i");
+  return allVoices().filter((v) => re.test(norm(v.lang))).map((v) => ({ v, ...voiceInfo(v) }))
+    .sort((a, b) => b.score - a.score || a.v.name.localeCompare(b.v.name));
+}
+export const englishVoices = () => voicesFor("en").map((x) => x.v);
+export const turkishVoices = () => voicesFor("tr").map((x) => x.v);
+
+/** Bu cihazdaki en iyi sesin kalite sınıfı (hiç ses yoksa null) — ayarlarda uyarı için. */
+export function bestQuality(lang = "en") {
+  const l = voicesFor(lang);
+  return l.length ? l[0].quality : null;
 }
 
-function chooseVoice(accent, voiceURI) {
-  const voices = englishVoices();
+function chooseVoice(lang, accent, voiceURI) {
+  const list = voicesFor(lang);
   if (voiceURI) {
-    const v = voices.find((x) => x.voiceURI === voiceURI);
-    if (v) return v;
+    const hit = list.find((x) => x.v.voiceURI === voiceURI);
+    if (hit) return hit.v;
   }
-  const wanted = voices.filter((v) => v.lang.replace("_", "-").toLowerCase() === accent.toLowerCase());
-  return wanted.find((v) => /google|natural|samantha|daniel|premium|enhanced/i.test(v.name)) || wanted[0] || voices[0] || null;
+  const exact = accent ? list.filter((x) => norm(x.v.lang) === norm(accent)) : [];
+  return (exact[0] || list[0] || {}).v || null;
 }
 
-export function speak(text, { accent = "en-US", rate = 0.9, voiceURI = "" } = {}) {
+function utter(text, lang, { rate = 0.9, voice = null, pitch = 1 } = {}) {
   if (!synth || !text) return Promise.resolve();
   return new Promise((resolve) => {
     try {
       synth.cancel();
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = accent;
+      u.lang = lang;
       u.rate = rate;
-      const v = chooseVoice(accent, voiceURI);
-      if (v) u.voice = v;
+      u.pitch = pitch;
+      if (voice) { u.voice = voice; u.lang = voice.lang || lang; }
       u.onend = u.onerror = () => resolve();
       synth.speak(u);
     } catch { resolve(); }
   });
+}
+
+/** İngilizce okuma. Tek kelimede yapay yavaşlatma yerine ses kendi doğal hızında kalır (rate 1'e yaklaşır). */
+export function speak(text, { accent = "en-US", rate = 0.9, voiceURI = "" } = {}) {
+  return utter(text, accent, { rate, voice: chooseVoice("en", accent, voiceURI) });
+}
+
+/** Türkçe okuma (anlamlar ve çeviriler için). */
+export function speakTr(text, { rate = 0.95, trVoiceURI = "" } = {}) {
+  return utter(text, "tr-TR", { rate, voice: chooseVoice("tr", "tr-TR", trVoiceURI) });
 }
 
 export function stopSpeaking() { try { synth && synth.cancel(); } catch { /* yok say */ } }

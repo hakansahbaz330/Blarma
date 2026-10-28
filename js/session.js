@@ -1,6 +1,6 @@
 // Çalışma oturumu denetleyicisi: sırayı oluşturur, cevapları puanlar, kartları günceller.
 import { dayNumber } from "./util.js";
-import { review, graduate, newProgress, dueWords, pickNewWords, hashKey, gradeFor, newWordBudget } from "./srs.js";
+import { review, graduate, newProgress, dueWords, pickNewWords, hashKey, gradeFor, newWordBudget, retrievability, calibrate, creditSkill, skillOf } from "./srs.js";
 import { makeExercise, pickType } from "./exercises.js";
 import { hasEmoji } from "./visuals.js";
 
@@ -25,7 +25,7 @@ export function createSession({ store, index, mode = "daily", words = null, newC
   const st = store.state;
   const prog = st.prog;
   const meta = new Map();   // kelime -> {mistakes}
-  const log = { answers: 0, correct: 0, learned: [], reviewed: 0, missed: new Set(), known: [], xp: 0 };
+  const log = { answers: 0, correct: 0, learned: [], reviewed: 0, missed: new Set(), known: [], xp: 0, items: [] };
   let queue = [];
   let total = 0;
   let lastType = null;
@@ -137,7 +137,9 @@ export function createSession({ store, index, mode = "daily", words = null, newC
     if (t) markKnown(t.word);
   }
 
-  function submit({ correct, close = false, hinted = false, ms = null }) {
+  const opts = (word) => ({ gain: (st.cal && st.cal.g) || 1, key: word, day: today });
+
+  function submit({ correct, close = false, hinted = false, ms = null, answer = "" }) {
     const t = queue.shift();
     if (!t) return null;
     const word = t.word;
@@ -145,6 +147,8 @@ export function createSession({ store, index, mode = "daily", words = null, newC
     const typed = t.ex && (t.ex.type === "type_en" || t.ex.type === "dictation" || (t.ex.type === "cloze" && t.ex.mode === "type"));
     log.answers++;
     if (correct) log.correct++;
+    const skill = t.ex ? skillOf(t.ex.type, t.ex.mode) : "m";
+    log.items.push({ word, correct, answer: String(answer || ""), skill, kind: t.kind });
     let xp = 0;
     let grade = null;
 
@@ -158,7 +162,7 @@ export function createSession({ store, index, mode = "daily", words = null, newC
       } else {
         xp = mm.mistakes ? 5 : 10;
         if (t.stage === 2) {
-          prog[word] = graduate(card || newProgress(today), mm.mistakes + (close ? 1 : 0), today, st.settings.retention);
+          prog[word] = graduate(card || newProgress(today), mm.mistakes + (close ? 1 : 0), today, st.settings.retention, opts(word));
           log.learned.push(word);
           store.recordAnswer({ ok: true, isNew: "graduated", xp }, today);
         } else {
@@ -167,14 +171,16 @@ export function createSession({ store, index, mode = "daily", words = null, newC
       }
     } else if (t.kind === "review") {
       log.reviewed++;
+      // Kişisel uyarlama: tahmin edilen hatırlama olasılığı ile gerçek sonuç karşılaştırılır.
+      st.cal = calibrate(st.cal, { correct, expected: card && card.st ? retrievability(card, today) : 0.9 });
       if (!correct) {
         grade = 0;
         log.missed.add(word);
-        prog[word] = review(card, 0, today, st.settings.retention);
+        prog[word] = review(card, 0, today, st.settings.retention, opts(word));
         requeue({ word, kind: "relearn" }, 4);
       } else {
         grade = gradeFor({ correct, hinted, close, typed: !!typed, ms, reps: card.reps || 0 });
-        prog[word] = review(card, grade, today, st.settings.retention);
+        prog[word] = review(card, grade, today, st.settings.retention, opts(word));
         xp = grade === 1 ? 6 : 10;
       }
       store.recordAnswer({ ok: correct, isNew: "review", xp }, today);
@@ -189,6 +195,7 @@ export function createSession({ store, index, mode = "daily", words = null, newC
       store.recordAnswer({ ok: correct, xp }, today);
       if (!correct) log.missed.add(word);
     }
+    if (correct && prog[word] && t.kind !== "intro") prog[word] = creditSkill(prog[word], skill);
     log.xp += xp;
     store.save();
     return { xp, grade };

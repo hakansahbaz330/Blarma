@@ -489,3 +489,61 @@ test("x-* piktogram dosyaları geçerli SVG ve kimlikleri dosyaya özgü", () =>
     for (const m of svg.matchAll(/id="([^"]+)"/g)) assert.ok(m[1] === "kb" || m[1] === "kb2" || m[1].startsWith(f.slice(0, -4).replace(/[^a-zA-Z0-9]/g, "_")), `${f}: kimlik ${m[1]}`);
   }
 });
+
+import { scheduleInterval, calibrate, skillOf, skillStars, creditSkill, weakestSkill, ladderStep, LADDER, SKILLS } from "../js/srs.js";
+
+test("aralık: titreşim (fuzz) ±%5'i aşmaz, aynı anahtarla aynıdır, kısa aralıkta uygulanmaz; kişisel çarpan ölçekler", () => {
+  const base = intervalFor(20, 0.9);
+  const a = scheduleInterval(20, 0.9, { key: "apple", day: 5 }), b = scheduleInterval(20, 0.9, { key: "apple", day: 5 });
+  assert.equal(a, b);
+  assert.ok(Math.abs(a - base) <= Math.ceil(base * 0.05) + 1);
+  const spread = new Set(["a", "b", "c", "d", "e", "f", "g", "h"].map((k) => scheduleInterval(20, 0.9, { key: k, day: 1 })));
+  assert.ok(spread.size > 1, "farklı kelimeler farklı güne dağılmalı");
+  assert.equal(scheduleInterval(1, 0.9, { key: "x", day: 1 }), intervalFor(1, 0.9));
+  assert.ok(scheduleInterval(20, 0.9, { gain: 0.7 }) < base && scheduleInterval(20, 0.9, { gain: 1.3 }) > base);
+  assert.equal(scheduleInterval(1000, 0.9, { gain: 1.6 }), MAX_INTERVAL);
+});
+
+test("kişisel uyarlama: beklenenden kötü sonuç aralıkları kısaltır, iyi sonuç uzatır; sınırlı adım", () => {
+  let c = null;
+  for (let i = 0; i < 25; i++) c = calibrate(c, { correct: i % 2 === 0, expected: 0.9 });   // %52 gerçek, %90 beklenen
+  assert.ok(c.g < 1 && c.g >= 0.88, `g=${c.g}`);
+  let d = null;
+  for (let i = 0; i < 25; i++) d = calibrate(d, { correct: true, expected: 0.8 });
+  assert.ok(d.g > 1 && d.g <= 1.12, `g=${d.g}`);
+  let e = { n: 0, ok: 0, exp: 0, g: 1 };
+  for (let i = 0; i < 400; i++) e = calibrate(e, { correct: false, expected: 0.9 });
+  assert.ok(e.g >= 0.6);
+});
+
+test("beceriler: tür → beceri, yıldız eşikleri, kredi, en zayıf beceri; merdiven basamağı", () => {
+  assert.equal(skillOf("mcq_en_tr"), "m"); assert.equal(skillOf("listen_mcq"), "l"); assert.equal(skillOf("type_en"), "w");
+  assert.equal(skillOf("cloze", "type"), "w"); assert.equal(skillOf("cloze", "mcq"), "m"); assert.equal(skillOf("speak"), "s");
+  assert.deepEqual([0, 1, 2, 3, 4, 5, 9].map(skillStars), [0, 1, 1, 2, 2, 3, 3]);
+  let c = newProgress(0);
+  c = creditSkill(c, "l"); c = creditSkill(c, "l");
+  assert.deepEqual(c.sk, { m: 0, l: 2, w: 0, s: 0 });
+  assert.equal(weakestSkill(c, ["m", "l"]), "m");
+  assert.equal(weakestSkill(c, []), null);
+  assert.equal(SKILLS.length, 4);
+  assert.deepEqual(LADDER, [1, 3, 7, 30, 120]);
+  assert.equal(ladderStep({ ...newProgress(0), s: 2, st: 3, iv: 3 }), 2);
+  assert.equal(ladderStep({ ...newProgress(0), s: 2, st: 40, iv: 40 }), 4);
+  assert.equal(ladderStep(newProgress(0)), 0);
+});
+
+test("oturum: cevap kaydı (kelime/cevap/beceri) tutulur, doğru cevap beceriye yıldız işler, tekrar kişisel sayacı besler", () => {
+  const store = createStore(memStorage());
+  store.state.settings.goal = 0;
+  const wd = words[0].word;
+  store.state.prog[wd] = { ...newProgress(0), s: 2, due: 5, iv: 3, st: 3, reps: 2, last: 2 };
+  const s = createSession({ store, index, mode: "review", rng: mulberry32(5), caps: {}, today: 6 });
+  const t = s.current();
+  s.submit({ correct: true, answer: "xyz" });
+  const sum = s.summary();
+  assert.equal(sum.items.length, 1);
+  assert.equal(sum.items[0].word, wd); assert.equal(sum.items[0].answer, "xyz"); assert.ok(["m", "l", "w", "s"].includes(sum.items[0].skill));
+  assert.equal(Object.values(store.state.prog[wd].sk).reduce((a, b) => a + b, 0), 1);
+  assert.equal(store.state.cal.n, 1);
+  assert.ok(t.ex);
+});

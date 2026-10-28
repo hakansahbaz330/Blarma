@@ -8,10 +8,14 @@ export const DEFAULT_SETTINGS = {
   levels: ["a1", "a2"],
   accent: "en-US",
   voice: "",
+  trVoice: "",
   rate: 0.9,
   theme: "auto",
   speaking: true,
   autoplay: true,
+  haptics: true,       // doğru/yanlışta titreşim
+  sfx: false,          // doğru/yanlışta küçük ses
+  reminderHour: 20,
   slideSeconds: 6,     // slayt gösterisi hızı
   practiceCount: 10,   // pratik turu uzunluğu
   writeMode: (typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse)").matches) ? "tiles" : "keyboard",
@@ -34,6 +38,7 @@ export function defaultState() {
     flags: {},           // hatalı çeviri bildirimleri: kelime -> not
     stories: { read: {}, fav: {} },   // hikâye id -> okunduğu gün / favori
     stats: { xp: 0, streak: 0, best: 0, last: 0, freezes: 1, daily: {} },
+    cal: { n: 0, ok: 0, exp: 0, g: 1 },   // kişisel aralık uyarlaması (srs.calibrate)
   };
 }
 

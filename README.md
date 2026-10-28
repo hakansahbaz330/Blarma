@@ -74,3 +74,13 @@ python3 tools/build_words.py   # data/words.js üretir ve tutarlılığı doğru
 ```
 
 Kelime listesinin kaynağını ve lisansını ticari yayın öncesinde mutlaka doğrulayın.
+
+## Tekrar ve beceri sistemi (güncel)
+
+* **Dört beceri / üç yıldız:** Her kelime için anlam, dinleme, yazma ve konuşma ayrı izlenir; zayıf beceri daha sık çalıştırılır.
+* **Tekrar merdiveni:** 1 · 3 · 7 · 30 · 120 gün basamakları kelime kartında ve günlük ilerleme listesinde görünür.
+* **Oturum sonu geri bildirimi:** doğru/yanlış sayısı, kelime kelime sonuç, "senin cevabın", örnek cümle ve "yanlışlarımı tekrar et".
+* **Günlük ilerleme:** Bahçem → Günlük ilerleme; bugün çalışılan kelimeler açılır satırlarla, beceri yıldızlarıyla.
+* **Zamanlama:** hedef hatırlamaya göre aralık, ±%5 titreşim, kişisel uyarlama çarpanı (bkz. `docs/BILIM.md` §5).
+* **Ses:** cihazdaki en doğal İngilizce/Türkçe ses otomatik seçilir (kalite etiketli), ses seçici, yavaş okuma, Türkçe anlam okuma.
+* **Cila:** doğru/yanlış titreşimi ve isteğe bağlı ses efekti, günlük takvim hatırlatıcısı (.ics), ana ekrana ekleme.

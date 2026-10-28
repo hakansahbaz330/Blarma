@@ -53,3 +53,24 @@ Her kart: `st` (kararlılık, gün), `d` (güçlük 1–10), son tekrar günü.
 * Arnold & McDermott (2013). Test-potentiated learning. *Journal of Experimental Psychology: LMC*.
 * Nation, P. (çeşitli) — sözcük öğrenmede karşılaşma sayısı üzerine; ayrıca Saragi, Nation & Meister (1978).
 * Ye, J. ve ark. — FSRS, açık kaynak aralıklı tekrar zamanlayıcısı (fikir olarak başvuruldu).
+
+## 5. Güncelleme: araştırmadan çıkan yeni kurallar
+
+Bu bölüm, ikinci tur araştırmanın uygulamaya yansıyan sonuçlarıdır. Her madde kaynağıyla birlikte, doğrulama sınırı açıkça yazılarak verilmiştir.
+
+| Bulgu | Uygulamadaki karşılığı |
+|---|---|
+| **En iyi aralık, hatırlanacak süreyle orantılıdır** (Cepeda ve ark. 2008): birkaç haftalık hedefte en iyi tekrar aralığı yaklaşık %20'dir (ikinci bir özet %10–40 bandını verir); bir yıllık hedefte %5'e iner. Kısa aralık, uzun aralıktan daha çok zarar verir. Makale sözcük değil bilgi sorularıyla yapıldı; yabancı sözcük için 2009 devam çalışması bakılmalı. | Aralık hâlâ hedef hatırlama olasılığından türetilir; aralıkların 1 → 3 → 7 → 30 → 120 gün merdiveni olarak **kelime kartında gösterilir**. Hedefi "Rahat/Dengeli/Sıkı" ile değiştirmek, bu oranı kaydırır. |
+| **Ardışık yeniden öğrenme** (Rawson & Dunlosky): oturum içinde önce ölçüte kadar çalış, sonra **aralıklı oturumlarda yeniden** öğren. Tek oturumda üç kez hatırlamak, üç ayrı oturumda birer kez hatırlamaktan belirgin biçimde zayıf bulundu (ikinci elden aktarılan örnek: 1 hafta sonra yaklaşık %26 ve %68). Kesin sayıları özgün makaleden doğrulamadım. | Yeni kelime oturum içinde iki doğru çağırmayla geçer ve **ertesi gün, sonra 3. gün, 7. gün…** yeniden sorulur. Yanlışlar oturum sonunda "şimdi tekrar et" ile hemen çalıştırılabilir, ama zamanlama değişmez. |
+| **Kümelenmeyi önleme** (FSRS ve benzeri zamanlayıcılar ±%5 rastgele titreşim kullanır) | ≥ 5 günlük aralıklara kelimeye ve güne bağlı **sabit ±%5 titreşim**: aynı gün öğrenilen kelimeler aynı gün birikmez. |
+| **Kişiye uyarlama** (FSRS parametreleri kullanıcının verisiyle eğitilir) | Tam FSRS eğitimi yerine **tek çarpanlı basit uyarlama**: her tekrarda tahmin edilen hatırlama olasılığı ile gerçek sonuç tutulur; her 25 tekrarda gerçek oran beklenenden düşükse aralıklar kısalır, yüksekse uzar (adım ≤ %12, çarpan 0,6–1,6). Bu, kalibre edilmiş bir model değil, güvenli bir otomatik ayardır. |
+| **Üretim tanımadan zordur; beceriler ayrıdır** (üretim etkisi, alıcı/üretici sözcük bilgisi ayrımı) | Her kelimede **dört beceri** ayrı izlenir: anlam, dinleme, yazma, konuşma (her biri 1–3 yıldız). Zayıf beceriye ait alıştırma türü daha sık seçilir (olasılıkla; çeşitlilik kalır). |
+| **Başarısız denemeden sonra geri bildirim** | Oturum sonunda kelime kelime: doğru/yanlış, anlam, **senin cevabın** ve örnek cümle. |
+
+**Hâlâ yapılmadı / bilinmiyor:** Sabitler (1,45; 2,2…) kişisel veriyle eğitilmedi; uyarlama çarpanı tek bir sayıdır. Bir gün içinde ek "akşam tekrarı" (uyku öncesi) önerisi test edilmedi. Beceri yıldız eşikleri (1/3/5 başarı) ürün kararıdır, bilimsel bir eşik değildir.
+
+### Kaynaklar (bu turda aramada doğrudan görülenler)
+
+* Cepeda ve ark. (2008) — [York Üniversitesi sayfası](https://www.yorku.ca/ncepeda/publications/CVRWP2008.html); 2009 devamı: [Cepeda ve ark. 2009](https://www.yorku.ca/ncepeda/publications/CCRWMP2009.html)
+* Successive relearning üzerine derleme: [Rawson & Dunlosky 2022, Current Directions in Psychological Science](https://journals.sagepub.com/doi/full/10.1177/09637214221100484)
+* FSRS-5 güç yasası eğrisi ve ±%5 titreşim örneği: [Borretti, "Implementing FSRS in 100 Lines"](https://borretti.me/article/implementing-fsrs-in-100-lines), [Obsidian FSRS eklentisi](https://community.obsidian.md/plugins/fsrs)
