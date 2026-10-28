@@ -1,4 +1,5 @@
-"""Tanıtım videosunun sesi: kendi sentezlediğimiz telifsiz müzik + Türkçe seslendirme (Piper, CC0 ses verisi).
+"""[Remotion sürümü: audio.py aynı mantıkla sıralı zamanlama yapar ve vo.json üretir]
+Tanıtım videosunun sesi: kendi sentezlediğimiz telifsiz müzik + Türkçe seslendirme (Piper, CC0 ses verisi).
 Kullanım: python3 audio.py <ses-modeli-klasörü> <çıktı.wav> [süre]
 Ses modeli: vits-piper-tr_TR-fahrettin-medium (CC0 veri). Piper çalışma zamanı GPL; ürettiği ses dosyası ona tabi değildir."""
 import sys, wave, subprocess, json, numpy as np
