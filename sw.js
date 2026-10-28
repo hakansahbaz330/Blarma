@@ -1,9 +1,12 @@
 // Basit çevrimdışı önbellek: uygulama kabuğu önce önbellekten, ağ yedek.
-const VERSION = "kb-v6";
+const VERSION = "kb-v7";
+try { importScripts("data/art.js"); } catch { /* çizim listesi yoksa yalnızca çalışma anında önbelleğe alınır */ }
+const ART = (self.KB_ART || []).map((w) => `art/${encodeURIComponent(w)}.svg`);
 const ASSETS = [
-  "./", "index.html", "css/style.css", "manifest.webmanifest", "data/words.js", "data/emoji.js", "data/stories.js",
+  "./", "index.html", "css/style.css", "manifest.webmanifest", "data/words.js", "data/emoji.js", "data/art.js", "data/stories.js",
   "js/app.js", "js/ctx.js", "js/store.js", "js/srs.js", "js/session.js", "js/sessionui.js",
   "js/exercises.js", "js/speech.js", "js/util.js", "js/icons.js", "js/stories.js", "js/storiesui.js", "js/slideshow.js", "js/visuals.js", "js/lemma.js", "js/ambient.js", "js/meditation.js", "js/recorder.js", "fonts/bricolage-grotesque-latin-ext-wght-normal.woff2", "fonts/bricolage-grotesque-latin-wght-normal.woff2", "fonts/figtree-latin-ext-wght-normal.woff2", "fonts/figtree-latin-wght-normal.woff2", "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png",
+  ...ART,
 ];
 
 self.addEventListener("install", (e) => {

@@ -472,3 +472,11 @@ h1.page-title { font-size: 26px; font-weight: 800; letter-spacing: -.02em; margi
 .memplant { flex: none; width: 30px; height: 30px; }
 .feedback .ex-note { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: var(--surface); border: 1px dashed var(--border); font-size: 14px; }
 .feedback .ex-note::before { content: "Notun: "; font-weight: 700; color: var(--muted); }
+
+/* Özgün çizimler */
+.art { display: block; width: 100%; height: 100%; object-fit: contain; user-select: none; -webkit-user-drag: none; }
+.tile .art { width: 86%; height: 86%; }
+.emoji-big .art { width: 150px; height: 150px; margin: 0 auto; }
+.opt.emoji-opt .art { width: 84px; height: 84px; margin: 0 auto; }
+.inl-vis { display: inline-block; width: 1.5em; height: 1.5em; vertical-align: -0.35em; }
+.inl-vis .art { width: 100%; height: 100%; }

@@ -7,7 +7,8 @@ for (const f of readdirSync(new URL(".", import.meta.url))) {
   const m = f.match(/^set(\d+)\.mjs$/);
   if (m) for (const set of Object.values(await import(`./${f}`))) Object.assign(groups, set);
 }
-const out = process.argv[2] || "art/real";
+const out = process.argv[2] || "art";
+const sheetPath = process.argv[3];
 mkdirSync(out, { recursive: true });
 const NOGROUND = new Set(["sun", "snow", "cloud", "rain", "star", "moon", "fire", "leaf"]);
 let sheet = "", n = 0;
@@ -19,5 +20,6 @@ for (const [w, fn] of Object.entries(groups)) {
   sheet += `<figure><div class="t">${svg}</div><figcaption>${w}</figcaption></figure>`;
   n++;
 }
-writeFileSync(`${out}/_sheet.html`, `<!doctype html><meta charset=utf-8><style>body{margin:0;padding:16px;background:#f4f5f1;font:13px system-ui;display:grid;grid-template-columns:repeat(10,1fr);gap:10px}figure{margin:0;text-align:center}.t{background:#e3ece8;border-radius:16px;padding:8px}svg{width:100%;height:auto;display:block}</style>${sheet}`);
+if (sheetPath) writeFileSync(sheetPath, `<!doctype html><meta charset=utf-8><style>body{margin:0;padding:16px;background:#f4f5f1;font:13px system-ui;display:grid;grid-template-columns:repeat(10,1fr);gap:10px}figure{margin:0;text-align:center}.t{background:#e3ece8;border-radius:16px;padding:8px}svg{width:100%;height:auto;display:block}</style>${sheet}`);
+writeFileSync(new URL("../../data/art.js", import.meta.url), `// Otomatik üretildi: node tools/art/real.mjs (çizimi olan kelimeler)\nself.KB_ART = ${JSON.stringify(Object.keys(groups).sort())};\n`);
 console.log(n, "çizim →", out);

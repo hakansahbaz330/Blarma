@@ -406,3 +406,37 @@ test("örnek cümle çevirileri: her kelimede var, boş ya da İngilizce kopya d
   assert.equal(bad.length, 0, "eksik/bozuk: " + bad.slice(0, 5).map((w) => w.word).join(","));
   assert.ok(words.filter((w) => /[çğıöşüÇĞİÖŞÜ]/.test(w.exampleTr)).length / words.length > 0.5, "çoğu çeviride Türkçe karakter olmalı");
 });
+
+import { readdirSync } from "node:fs";
+import { visualKey, hasEmoji, hasArt, renderVisual, tileHtml } from "../js/visuals.js";
+
+test("çizimler: her kelime sözlükte, dosya geçerli SVG, kimlikler dosyaya özgü, liste dosyalarla eşleşir", () => {
+  const src = readFileSync(new URL("../data/art.js", import.meta.url), "utf8");
+  const list = new Function("self", src + "; return self.KB_ART;")({});
+  const files = readdirSync(new URL("../art/", import.meta.url)).filter((f) => f.endsWith(".svg")).map((f) => f.slice(0, -4)).sort();
+  assert.deepEqual(files, [...list].sort());
+  const words = new Set(readFileSync(new URL("../data-src/wordlist.psv", import.meta.url), "utf8").split("\n").map((l) => l.split("|")[0]));
+  for (const w of list) {
+    assert.ok(words.has(w), `${w} sözlükte yok`);
+    const svg = readFileSync(new URL(`../art/${w}.svg`, import.meta.url), "utf8");
+    assert.match(svg, /^<svg [^>]*viewBox="0 0 96 96"/);
+    assert.ok(!/(href|src)=|<script|<image|url\(http/i.test(svg), `${w}: dış kaynak/komut içeriyor`);
+    for (const m of svg.matchAll(/id="([^"]+)"/g)) assert.ok(m[1] === "kb" || m[1] === "kb2" || m[1].startsWith(w), `${w}: kimlik ${m[1]} çakışabilir`);
+  }
+  assert.ok(list.length >= 90);
+});
+
+test("görsel kimliği: çizim varsa art:, yoksa emoji; hasEmoji ikisini de sayar", () => {
+  globalThis.self = { KB_ART: ["apple"] };
+  globalThis.window = { KB_EMOJI: { apple: "🍎", bread: "🍞" } };
+  assert.equal(visualKey("apple"), "art:apple");
+  assert.equal(visualKey("bread"), "🍞");
+  assert.equal(visualKey("idea"), "");
+  assert.ok(hasEmoji("apple") && hasEmoji("bread") && !hasEmoji("idea"));
+  assert.ok(hasArt("apple") && !hasArt("bread"));
+  assert.match(renderVisual("art:apple"), /<img class="art" src="art\/apple\.svg"/);
+  assert.equal(renderVisual("🍞"), "🍞");
+  assert.match(tileHtml({ word: "apple", level: "a1" }, "xl"), /art\/apple\.svg/);
+  assert.match(tileHtml({ word: "idea", level: "b1" }, "md"), /<b>I<\/b>/);
+  delete globalThis.self;
+});

@@ -5,7 +5,7 @@ import { makeExercise, checkTyped, posLabel, shortMeaning } from "./exercises.js
 import { LEVELS, LEVEL_LABELS, forecast } from "./srs.js";
 import { speak, stopSpeaking, listenOnce, caps as speechCaps } from "./speech.js";
 import { icons, plants } from "./icons.js";
-import { tileHtml, emojiFor } from "./visuals.js";
+import { tileHtml, visualKey, renderVisual } from "./visuals.js";
 import { escapeHtml as h, dayNumber, shuffle } from "./util.js";
 
 let S = null;            // etkin oturum
@@ -160,7 +160,7 @@ function promptHtml(ex, w) {
   const audioBtn = (txt) => `<button class="icon-btn say" data-a="s:say" data-t="${h(txt)}" aria-label="Dinle" style="margin:8px auto 0">${icons.speaker}</button>`;
   switch (ex.type) {
     case "emoji_mcq":
-      return `<div class="q-prompt"><div class="kicker">${h(ex.prompt)}</div><div class="emoji-big" aria-label="görsel">${ex.emoji}</div><div class="hint-chip">${h(ex.sub)}</div></div>`;
+      return `<div class="q-prompt"><div class="kicker">${h(ex.prompt)}</div><div class="emoji-big" aria-label="görsel">${renderVisual(ex.emoji)}</div><div class="hint-chip">${h(ex.sub)}</div></div>`;
     case "listen_emoji":
       return `<div class="q-prompt"><div class="kicker">${h(ex.prompt)}</div>${speakBtns(w.word)}</div>`;
     case "mcq_en_tr":
@@ -190,7 +190,7 @@ function renderExercise(t) {
   const w = wordOf(t);
   const optionsHtml = ex.options
     ? `<div class="options ${ex.emojiOptions ? "emoji-grid" : ""}" id="opts">${ex.options.map((o, i) => ex.emojiOptions
-        ? `<button class="opt emoji-opt" data-a="s:opt" data-i="${i}" aria-label="Seçenek ${i + 1}"><span>${o.label}</span></button>`
+        ? `<button class="opt emoji-opt" data-a="s:opt" data-i="${i}" aria-label="Seçenek ${i + 1}"><span>${renderVisual(o.label)}</span></button>`
         : `<button class="opt" data-a="s:opt" data-i="${i}"><kbd>${i + 1}</kbd><span>${h(o.label)}</span></button>`).join("")}</div>`
     : "";
   const typed = ex.type === "type_en" || ex.type === "dictation" || (ex.type === "cloze" && ex.mode === "type");
@@ -238,7 +238,7 @@ function feedbackHtml(ok, close, w, extra = "") {
   const title = ok ? (close ? "Neredeyse! Doğru yazım:" : ["Harika!", "Doğru!", "Süper!", "Tam isabet!"][Math.floor(Math.random() * 4)]) : "Doğrusu:";
   return `<div class="feedback ${ok ? "ok" : "bad"}" role="status">
       <h3>${h(title)}</h3>
-      <div class="w" lang="en">${emojiFor(w.word) ? emojiFor(w.word) + " " : ""}${h(w.word)} <span class="muted" style="font-weight:600;font-size:15px">· ${h(posLabel(w.pos))}</span></div>
+      <div class="w" lang="en">${visualKey(w.word) ? `<span class="inl-vis">${renderVisual(visualKey(w.word))}</span> ` : ""}${h(w.word)} <span class="muted" style="font-weight:600;font-size:15px">· ${h(posLabel(w.pos))}</span></div>
       <div>${h(w.tr.join(" · "))}</div>
       ${w.example ? `<div class="ex" lang="en">${h(w.example)}</div>` : ""}
       ${w.exampleTr ? `<div class="ex-tr" lang="tr">${h(w.exampleTr)}</div>` : ""}

@@ -13,7 +13,7 @@ import { openMeditation } from "./meditation.js";
 import { startRecorder, recordingSupported } from "./recorder.js";
 import { storiesView, storyOfTheDay, storyReadToday, openReader } from "./storiesui.js";
 import { DEFAULT_MODEL } from "./stories.js";
-import { tileHtml, hasEmoji } from "./visuals.js";
+import { tileHtml, hasEmoji, hasArt } from "./visuals.js";
 import { hashKey } from "./srs.js";
 
 const store = createStore();
@@ -115,9 +115,13 @@ function dailyState() {
 
 function wordsOfTheDay(today) {
   const levels = store.state.settings.levels;
-  const pool = ctx.words.filter((w) => levels.includes(w.level) && hasEmoji(w.word) && !store.state.prog[w.word]);
-  const fallback = pool.length >= 6 ? pool : ctx.words.filter((w) => hasEmoji(w.word) && !store.state.prog[w.word]);
-  return fallback.slice().sort((a, b) => hashKey(a.word, today) - hashKey(b.word, today)).slice(0, 6);
+  const fresh = (w) => hasEmoji(w.word) && !store.state.prog[w.word];
+  const pick = (list) => list.slice().sort((a, b) => hashKey(a.word, today) - hashKey(b.word, today)).slice(0, 6);
+  // Aynı görsel dilde kalmak için önce çizimi olan kelimeler, yetmezse emojili olanlar.
+  for (const pool of [ctx.words.filter((w) => levels.includes(w.level) && fresh(w) && hasArt(w.word)), ctx.words.filter((w) => fresh(w) && hasArt(w.word)), ctx.words.filter((w) => levels.includes(w.level) && fresh(w)), ctx.words.filter(fresh)]) {
+    if (pool.length >= 6) return pick(pool);
+  }
+  return pick(ctx.words.filter(fresh));
 }
 
 function planRow({ title, sub, done, action, held }) {
