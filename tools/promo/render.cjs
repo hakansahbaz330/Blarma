@@ -16,11 +16,11 @@ const out = process.argv[2] || "promo.mp4", dur = Number(process.argv[3] || 28),
     await p.screenshot({ path: `${dir}/f${String(i).padStart(4, "0")}.jpg`, type: "jpeg", quality: 92 });
   }
   await b.close();
-  // Hafif, kendi sentezlediğimiz (telifsiz) ses dokusu: Am7 benzeri üç sinüs, yavaş titreşim, giriş/çıkış geçişi.
-  const pad = [220, 261.63, 329.63, 392].map((f) => `sine=frequency=${f}:duration=${dur}:sample_rate=44100`);
-  const aud = ["-f", "lavfi", "-i", pad[0], "-f", "lavfi", "-i", pad[1], "-f", "lavfi", "-i", pad[2], "-f", "lavfi", "-i", pad[3]];
-  const flt = `[1:a][2:a][3:a][4:a]amix=inputs=4:normalize=0,volume=0.10,tremolo=f=0.35:d=0.35,afade=t=in:d=1.5,afade=t=out:st=${dur - 2}:d=2[a]`;
-  execFileSync("ffmpeg", ["-y", "-framerate", String(fps), "-i", `${dir}/f%04d.jpg`, ...aud, "-filter_complex", flt, "-map", "0:v", "-map", "[a]", "-vf", "format=yuv420p", "-c:v", "libx264", "-crf", "18", "-preset", "medium", "-c:a", "aac", "-b:a", "128k", "-shortest", "-movflags", "+faststart", out], { stdio: "ignore" });
+  // Ses: tools/promo/audio.py ile üretilen müzik + seslendirme (istenirse üçüncü argüman olarak verilir)
+  const audio = process.argv[4];
+  const aud = audio ? ["-i", audio] : [];
+  const map = audio ? ["-map", "0:v", "-map", "1:a", "-c:a", "aac", "-b:a", "192k", "-shortest"] : [];
+  execFileSync("ffmpeg", ["-y", "-framerate", String(fps), "-i", `${dir}/f%04d.jpg`, ...aud, ...map, "-vf", "format=yuv420p", "-c:v", "libx264", "-crf", "18", "-preset", "medium", "-movflags", "+faststart", out], { stdio: "ignore" });
   fs.rmSync(dir, { recursive: true, force: true });
   console.log("hazır:", out);
 })();
