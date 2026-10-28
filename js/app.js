@@ -13,7 +13,7 @@ import { openMeditation } from "./meditation.js";
 import { startRecorder, recordingSupported } from "./recorder.js";
 import { storiesView, storyOfTheDay, storyReadToday, openReader } from "./storiesui.js";
 import { DEFAULT_MODEL } from "./stories.js";
-import { tileHtml, hasEmoji, hasArt } from "./visuals.js";
+import { tileHtml, hasEmoji, hasArt, fieldChip } from "./visuals.js";
 import { hashKey } from "./srs.js";
 
 const store = createStore();
@@ -424,7 +424,7 @@ function openWord(word) {
   }
   const note = store.state.notes[word] || "";
   modal(`
-    <div class="row between"><span class="chip lv lv-${w.level}">${w.level === "k" ? "Kendi" : w.level.toUpperCase()}</span>
+    <div class="row between"><span class="row" style="gap:6px;flex-wrap:wrap"><span class="chip lv lv-${w.level}">${w.level === "k" ? "Kendi" : w.level.toUpperCase()}</span>${fieldChip(w.word)}</span>
       <button class="icon-btn" data-a="close-modal" aria-label="Kapat">${icons.close}</button></div>
     <div style="text-align:center" class="stack">
       <div style="display:flex;justify-content:center">${tileHtml(w, "xl")}</div>

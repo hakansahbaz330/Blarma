@@ -7,6 +7,12 @@ for (const f of readdirSync(new URL(".", import.meta.url))) {
   const m = f.match(/^set(\d+)\.mjs$/);
   if (m) for (const set of Object.values(await import(`./${f}`))) Object.assign(groups, set);
 }
+import { readFileSync } from "node:fs";
+import { familyEntries } from "./families.mjs";
+const wordRows = readFileSync(new URL("../../data-src/wordlist.psv", import.meta.url), "utf8").split("\n").filter(Boolean).map((l) => ({ word: l.split("|")[0] }));
+const fam = familyEntries(wordRows);
+const FAMILY = new Set(Object.keys(fam));
+for (const [w, fn] of Object.entries(fam)) if (!groups[w]) groups[w] = fn;
 const out = process.argv[2] || "art";
 const sheetPath = process.argv[3];
 mkdirSync(out, { recursive: true });
@@ -16,7 +22,7 @@ let sheet = "", n = 0;
 for (const [w, fn] of Object.entries(groups)) {
   const k = makeKit(w);
   const body = fn(k);
-  const svg = k.render(body, { ground: NOGROUND.has(w) ? 0 : 22 });
+  const svg = k.render(body, { ground: NOGROUND.has(w) || FAMILY.has(w) ? 0 : 22 });
   writeFileSync(`${out}/${w}.svg`, svg);
   sheet += `<figure><div class="t">${svg}</div><figcaption>${w}</figcaption></figure>`;
   n++;

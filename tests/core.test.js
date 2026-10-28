@@ -413,7 +413,7 @@ import { visualKey, hasEmoji, hasArt, renderVisual, tileHtml } from "../js/visua
 test("çizimler: her kelime sözlükte, dosya geçerli SVG, kimlikler dosyaya özgü, liste dosyalarla eşleşir", () => {
   const src = readFileSync(new URL("../data/art.js", import.meta.url), "utf8");
   const list = new Function("self", src + "; return self.KB_ART;")({});
-  const files = readdirSync(new URL("../art/", import.meta.url)).filter((f) => f.endsWith(".svg")).map((f) => f.slice(0, -4)).sort();
+  const files = readdirSync(new URL("../art/", import.meta.url)).filter((f) => f.endsWith(".svg") && !f.startsWith("field-")).map((f) => f.slice(0, -4)).sort();
   assert.deepEqual(files, [...list].sort());
   const words = new Set(readFileSync(new URL("../data-src/wordlist.psv", import.meta.url), "utf8").split("\n").map((l) => l.split("|")[0]));
   for (const w of list) {
@@ -421,9 +421,10 @@ test("çizimler: her kelime sözlükte, dosya geçerli SVG, kimlikler dosyaya ö
     const svg = readFileSync(new URL(`../art/${w}.svg`, import.meta.url), "utf8");
     assert.match(svg, /^<svg [^>]*viewBox="0 0 96 96"/);
     assert.ok(!/(href|src)=|<script|<image|url\(http/i.test(svg), `${w}: dış kaynak/komut içeriyor`);
-    for (const m of svg.matchAll(/id="([^"]+)"/g)) assert.ok(m[1] === "kb" || m[1] === "kb2" || m[1].startsWith(w), `${w}: kimlik ${m[1]} çakışabilir`);
+    for (const m of svg.matchAll(/id="([^"]+)"/g)) assert.ok(m[1] === "kb" || m[1] === "kb2" || m[1].startsWith(w.replace(/[^a-zA-Z0-9]/g, "_")), `${w}: kimlik ${m[1]} çakışabilir`);
   }
   assert.ok(list.length >= 90);
+  assert.ok(!list.includes("may"), "may modal fiildir, ay çizimi yanıltıcı olur");
 });
 
 test("görsel kimliği: çizim varsa art:, yoksa emoji; hasEmoji ikisini de sayar", () => {
@@ -439,4 +440,16 @@ test("görsel kimliği: çizim varsa art:, yoksa emoji; hasEmoji ikisini de saya
   assert.match(tileHtml({ word: "apple", level: "a1" }, "xl"), /art\/apple\.svg/);
   assert.match(tileHtml({ word: "idea", level: "b1" }, "md"), /<b>I<\/b>/);
   delete globalThis.self;
+});
+
+test("her sözlük kelimesinin görseli var: çizim, emoji ya da anlam alanı (harf karosuna düşen kelime yok)", () => {
+  const art = new Function("self", readFileSync(new URL("../data/art.js", import.meta.url), "utf8") + "; return self.KB_ART;")({});
+  const fld = new Function("self", readFileSync(new URL("../data/fields.js", import.meta.url), "utf8") + "; return {m: self.KB_FIELD, l: self.KB_FIELD_LABELS};")({});
+  const emoji = new Function("window", readFileSync(new URL("../data/emoji.js", import.meta.url), "utf8") + "; return window.KB_EMOJI;")({});
+  const words = readFileSync(new URL("../data-src/wordlist.psv", import.meta.url), "utf8").split("\n").filter(Boolean).map((l) => l.split("|")[0]);
+  const artSet = new Set(art);
+  const missing = words.filter((w) => !artSet.has(w) && !emoji[w] && !fld.m[w]);
+  assert.deepEqual(missing, [], `görseli olmayan kelimeler: ${missing.slice(0, 10)}`);
+  for (const c of Object.keys(fld.l)) assert.ok(readFileSync(new URL(`../art/field-${c}.svg`, import.meta.url), "utf8").startsWith("<svg"), `field-${c}.svg yok`);
+  for (const [w, c] of Object.entries(fld.m)) assert.ok(fld.l[c], `${w}: bilinmeyen alan ${c}`);
 });

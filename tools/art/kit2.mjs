@@ -12,7 +12,8 @@ export const T = {
 };
 export const INK = "#1c2427";
 
-export function makeKit(id) {
+export function makeKit(rawId) {
+  const id = String(rawId).replace(/[^a-zA-Z0-9]/g, "_");
   const defs = [];
   let n = 0;
   const stops = (a) => a.map((c, i) => `<stop offset="${a.length === 1 ? 0 : i / (a.length - 1)}" stop-color="${c}"/>`).join("");
@@ -36,6 +37,8 @@ export function makeKit(id) {
     G: (x, y, rx, ry, rot = 0, o = 0.6) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="#fff" opacity="${o}" filter="url(#kb)" transform="rotate(${rot} ${x} ${y})"/>`,
     // bulanık koyu gölge (gövde içi derinlik)
     D: (d, c = "#000", o = 0.18) => `<path d="${d}" fill="${c}" opacity="${o}" filter="url(#kb)"/>`,
+    // metin (görseller <img> içinde yüklendiği için sistem yazı tipi kullanılır)
+    X: (x, y, str, size = 40, fill = "#fff", w = 800) => `<text x="${x}" y="${y}" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif" font-weight="${w}" font-size="${size}" fill="${fill}">${str}</text>`,
     // gözler
     eye: (x, y, r = 3.4) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${INK}"/><circle cx="${x - r * 0.3}" cy="${y - r * 0.35}" r="${r * 0.36}" fill="#fff"/>`,
     clip: (cid, shapes, inner) => `<clipPath id="${id}${cid}">${shapes}</clipPath><g clip-path="url(#${id}${cid})">${inner}</g>`,

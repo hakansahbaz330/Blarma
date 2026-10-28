@@ -5,7 +5,7 @@ import { makeExercise, checkTyped, posLabel, shortMeaning } from "./exercises.js
 import { LEVELS, LEVEL_LABELS, forecast } from "./srs.js";
 import { speak, stopSpeaking, listenOnce, caps as speechCaps } from "./speech.js";
 import { icons, plants } from "./icons.js";
-import { tileHtml, visualKey, renderVisual } from "./visuals.js";
+import { tileHtml, visualKey, renderVisual, fieldChip } from "./visuals.js";
 import { escapeHtml as h, dayNumber, shuffle } from "./util.js";
 
 let S = null;            // etkin oturum
@@ -80,7 +80,7 @@ function next() {
 function wordOf(t) { return ctx.index.byWord.get(t.word); }
 
 function lvChip(w) {
-  return `<span class="chip lv lv-${w.level}">${w.level === "k" ? "Kendi" : w.level.toUpperCase()}</span>`;
+  return `<span class="chip lv lv-${w.level}">${w.level === "k" ? "Kendi" : w.level.toUpperCase()}</span>${fieldChip(w.word)}`;
 }
 
 function meaningsHtml(w) {
