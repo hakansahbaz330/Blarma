@@ -20,10 +20,29 @@ SCRIPT = [  # (başlangıç, en geç bitiş, metin)
     (20.2, 24.2, "Dört bin dokuz yüz elli dört kelime, hepsi görselli."),
     (24.7, 27.8, "Kelime Bahçesi. Günde beş dakika, unutmadan öğren."),
 ]
-name = [p for p in __import__("os").listdir(model_dir) if p.endswith(".onnx")][0]
-voice = PiperVoice.load(f"{model_dir}/{name}", config_path=f"{model_dir}/{name}.json")
+import os
+KOKORO = os.path.exists(f"{model_dir}/kokoro-v1.0.int8.onnx")
+if KOKORO:
+    # Kokoro-82M (Apache-2.0): doğal İngilizce anlatım. Türkçe desteklemez; bu yüzden metin İngilizce.
+    from kokoro_onnx import Kokoro
+    kokoro = Kokoro(f"{model_dir}/kokoro-v1.0.int8.onnx", f"{model_dir}/voices-v1.0.bin")
+    VOICE = os.environ.get("KOKORO_VOICE", "af_heart")
+    SCRIPT = [
+        (0.45, 3.45, "You learn new words... and then you forget them."),
+        (4.0, 8.4, "The fix is simple: review each word right before you forget it."),
+        (9.2, 14.3, "In Keh-lee-meh Bah-cheh-see, you see the word, hear it, and learn it in a real sentence."),
+        (14.9, 19.8, "Four skills for every word: meaning, listening, writing, and speaking."),
+        (20.2, 24.2, "Almost five thousand words, each with its own picture."),
+        (24.7, 27.8, "Keh-lee-meh Bah-cheh-see. Five minutes a day."),
+    ]
+else:
+    name = [p for p in os.listdir(model_dir) if p.endswith(".onnx")][0]
+    voice = PiperVoice.load(f"{model_dir}/{name}", config_path=f"{model_dir}/{name}.json")
 
 def synth(text, scale):
+    if KOKORO:
+        x, sr = kokoro.create(text, voice=VOICE, speed=min(1.3, 1 / scale), lang="en-us")
+        return x.astype(np.float32), sr
     import io
     buf = io.BytesIO()
     with wave.open(buf, "wb") as w:
